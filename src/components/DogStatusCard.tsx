@@ -1,7 +1,7 @@
 // import React from 'react';
 import bernerImage from "../images/berner.jpeg";
 
-export default function DogStatusCard() {
+export default function DogStatusCard(props) {
   return (
     <div className="relative bg-neutral-primary-soft max-w-xs w-full p-6 border border-default rounded-base shadow-xs">
       {/* <button

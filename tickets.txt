@@ -1,4 +1,4 @@
-### TICKET 1 — Home Screen Skeleton (No Data, No Logic)
+### TICKET 1 — Home Screen Skeleton (No Data, No Logic) DONE
 *   **Goal**: Create the Home / Status screen layout using static markup.
 *   **What you’re building**:
     *   A full-screen layout
