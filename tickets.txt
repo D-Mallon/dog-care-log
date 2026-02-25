@@ -1,0 +1,172 @@
+### TICKET 1 — Home Screen Skeleton (No Data, No Logic)
+*   **Goal**: Create the Home / Status screen layout using static markup.
+*   **What you’re building**:
+    *   A full-screen layout
+    *   A header (“Dog Care Log” or similar)
+    *   Two placeholder “Dog status cards”
+*   **Constraints**:
+    *   No props
+    *   No state
+    *   No fake data objects
+    *   Just JSX + Tailwind
+*   **What this teaches you**:
+    *   Component composition
+    *   Tailwind discipline
+    *   Layout thinking before logic
+*   **Done when**:
+    *   The page renders
+    *   It looks roughly like a dashboard
+    *   You could explain the structure out loud without scrolling
+*   **Watch for**:
+    *   Over-styling
+    *   Repeating Tailwind classes instead of extracting components
+    *   Premature abstraction
+
+### TICKET 2 — Extract a DogStatusCard Component
+*   **Goal**: Turn one dog’s UI into a reusable component.
+*   **What you’re building**:
+    *   `DogStatusCard.tsx`
+    *   Props for:
+        *   dog name
+        *   last feed time
+        *   last walk time
+        *   last toilet time
+        *   next thing due
+*   **Constraints**:
+    *   Props only (no hooks)
+    *   Values passed as strings
+    *   No formatting logic yet
+*   **What this teaches you**:
+    *   Prop typing in TypeScript
+    *   Component boundaries
+    *   The difference between layout and data
+*   **Done when**:
+    *   Home screen renders two cards using the same component
+    *   Changing props changes the output predictably
+*   **Watch for**:
+    *   Too many props too early
+    *   Logic creeping into JSX
+    *   Fighting TypeScript instead of listening to it
+
+### TICKET 3 — Introduce Fake Data (But Keep It Dumb)
+*   **Goal**: Simulate real usage without backend or Supabase.
+*   **What you’re building**:
+    *   A hardcoded array of “dogs with status”
+    *   Passed into the Home screen
+    *   Rendered via `.map()`
+*   **Constraints**:
+    *   Data lives in the screen file, not globally
+    *   Dates as ISO strings or plain text
+    *   No calculations
+*   **What this teaches you**:
+    *   Data → UI flow
+    *   Mapping arrays to components
+    *   Avoiding premature “state”
+*   **Done when**:
+    *   You can add a third dog by changing one array
+    *   The UI updates without touching components
+*   **Watch for**:
+    *   Adding logic “just because”
+    *   Over-engineering fake data
+    *   Moving data into context or stores (don’t)
+
+### TICKET 4 — Event Type Display (Visual Only)
+*   **Goal**: Visually distinguish feed / walk / toilet / meds.
+*   **What you’re building**:
+    *   Icons, colours, or labels per event type
+    *   No behaviour yet
+*   **Constraints**:
+    *   Event type is a string union from your types
+    *   Mapping object or simple switch
+    *   No conditionals scattered through JSX
+*   **What this teaches you**:
+    *   Using union types properly
+    *   Centralising display logic
+    *   Designing for extensibility
+*   **Done when**:
+    *   Each event type is visually distinct
+    *   Adding a new type would be obvious where to do
+*   **Watch for**:
+    *   Inline if chaos
+    *   Repeating logic in multiple places
+    *   Hardcoding text everywhere
+
+### TICKET 5 — “Log Event” Button (Dead Button)
+*   **Goal**: Introduce intent without behaviour.
+*   **What you’re building**:
+    *   A “Log” button on each dog card
+    *   Or a global “Log Event” button
+*   **Constraints**:
+    *   Button does nothing
+    *   No modal
+    *   No click handler logic beyond `console.log`
+*   **What this teaches you**:
+    *   Wiring UI affordances
+    *   Thinking about flows before implementation
+*   **Done when**:
+    *   Button exists
+    *   Click logs something meaningful
+    *   No errors
+*   **Watch for**:
+    *   Building the modal early
+    *   Routing
+    *   State machines in your head
+
+### TICKET 6 — Create the Log Event Screen (Isolated)
+*   **Goal**: Build the logging UI as if it were real — but isolated.
+*   **What you’re building**:
+    *   A new screen component
+    *   Dog selector
+    *   Event type selector
+    *   Optional note input
+    *   Submit button
+*   **Constraints**:
+    *   No navigation yet
+    *   No submission logic
+    *   Controlled inputs only
+*   **What this teaches you**:
+    *   Forms in React
+    *   Controlled vs uncontrolled inputs
+    *   Type-safe event handling
+*   **Done when**:
+    *   You can fill in the form
+    *   State updates correctly
+    *   Submit logs form state to console
+*   **Watch for**:
+    *   Over-validating
+    *   Clever abstractions
+    *   Fighting HTML forms instead of using them
+
+### TICKET 7 — Minimal Navigation (Two Screens Only)
+*   **Goal**: Move between Home and Log Event screens.
+*   **What you’re building**:
+    *   Either:
+        *   simple conditional rendering
+        *   or basic routing (your call)
+*   **Constraints**:
+    *   Only two screens
+    *   No nested routes
+    *   No deep linking concerns
+*   **What this teaches you**:
+    *   App flow control
+    *   State-driven navigation
+    *   Avoiding router overkill
+*   **Done when**:
+    *   You can go Home → Log → Home
+    *   State does not leak or reset unexpectedly
+*   **Watch for**:
+    *   Introducing routing libraries prematurely
+    *   Global state
+    *   UI flicker
+
+### TICKET 8 — Reality Check Commit
+*   **Goal**: Freeze progress and reflect.
+*   **What you’re doing**:
+    *   Commit everything
+    *   Write a commit message that explains why, not what
+*   **What this teaches you**:
+    *   Version control as thinking tool
+    *   Identifying milestones
+*   **Done when**:
+    *   You can describe the app’s behaviour without mentioning Supabase
+    *   The Home screen already feels useful
