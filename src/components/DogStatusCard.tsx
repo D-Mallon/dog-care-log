@@ -65,25 +65,26 @@ export default function DogStatusCard(props) {
       </div> */}
       <div className="flex flex-col items-center">
         <img
+          //NEED TO UPDATE THIS TO BE DYNAMIC AND THEN LOOK INTO PROP SHAPES WITH TYPESCRIPT ****** WIP
           className="w-24 h-24 mb-6 rounded-full"
           src={bernerImage}
           alt="Bernese Mountain Dog image"
         />
         <h5 className="mb-0.5 text-xl font-semibold tracking-tight text-heading">
-          Bear K
+          {props.dogName}
         </h5>
         <div className="flex mt-4 md:mt-6 gap-4"></div>
         <div className="max-w-sm rounded overflow-hidden shadow-lg p-4 mx-auto">
           <div className="font-bold text-xl mb-2">Basic Card</div>
           <ul className="text-gray-700 text-base">
-            <p className="font-bold ...">Status labels</p>
-            Last fed: 2 hours ago
+            <li className="font-bold ...">Status labels</li>
+            Last fed: {props.lastFedHours} hours ago
             <li />
-            Last walk: 30 minutes ago
+            Last walk: {props.lastWalkMinutes} minutes ago
             <li />
-            Last toilet: 1 hour ago
+            Last toilet: {props.lastToiletHours} hour ago
             <li />
-            Last meds: 4 hours ago
+            Last meds: {props.lastMedsHours} hours ago
           </ul>
         </div>
       </div>
