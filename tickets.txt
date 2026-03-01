@@ -22,7 +22,7 @@
     *   Repeating Tailwind classes instead of extracting components
     *   Premature abstraction
 
-### TICKET 2 — Extract a DogStatusCard Component
+### TICKET 2 — Extract a DogStatusCard Component.  DONE
 *   **Goal**: Turn one dog’s UI into a reusable component.
 *   **What you’re building**:
     *   `DogStatusCard.tsx`
