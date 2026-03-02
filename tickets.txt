@@ -93,7 +93,7 @@
     *   Routing
     *   State machines in your head
 
-### TICKET 6 — Create the Log Event Screen (Isolated)
+### TICKET 6 — Create the Log Event Screen (Isolated) ***DONE
 *   **Goal**: Build the logging UI as if it were real — but isolated.
 *   **What you’re building**:
     *   A new screen component

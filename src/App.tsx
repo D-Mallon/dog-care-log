@@ -4,6 +4,7 @@ import "./App.css";
 import bernerImage from "./images/berner.jpeg";
 
 import DogStatusCard from "./components/DogStatusCard.tsx";
+import LogEventScreen from "./screens/LogEventScreen.tsx";
 
 const dogs = [
   {
@@ -41,6 +42,7 @@ function App() {
       <main>
         <h1>Dog Care Log</h1>
       </main>
+      <LogEventScreen />
       {dogs.map((dog, index) => (
         <DogStatusCard
           key={index}
