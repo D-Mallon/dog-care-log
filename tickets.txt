@@ -72,7 +72,7 @@
 
 
 
-### TICKET 5 — “Log Event” Button (Dead Button)
+### TICKET 5 — “Log Event” Button (Dead Button) ***DONE
 *   **Goal**: Introduce intent without behaviour.
 *   **What you’re building**:
     *   A “Log” button on each dog card

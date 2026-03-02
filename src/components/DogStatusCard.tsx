@@ -79,6 +79,12 @@ export default function DogStatusCard(props: DogStatusCardProps) {
             <span>{props.lastMedsHours}h ago</span>
           </li>
         </ul>
+        <button
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          onClick={() => console.log(`Log event for ${props.dogName}`)}
+        >
+          Log event for {props.dogName}
+        </button>
       </div>
     </div>
   );
