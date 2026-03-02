@@ -48,7 +48,7 @@
     *   Logic creeping into JSX
     *   Fighting TypeScript instead of listening to it
 
-### TICKET 3 — Introduce Fake Data (But Keep It Dumb)
+### TICKET 3 — Introduce Fake Data (But Keep It Dumb).  ***Done
 *   **Goal**: Simulate real usage without backend or Supabase.
 *   **What you’re building**:
     *   A hardcoded array of “dogs with status”
@@ -70,26 +70,7 @@
     *   Over-engineering fake data
     *   Moving data into context or stores (don’t)
 
-### TICKET 4 — Event Type Display (Visual Only)
-*   **Goal**: Visually distinguish feed / walk / toilet / meds.
-*   **What you’re building**:
-    *   Icons, colours, or labels per event type
-    *   No behaviour yet
-*   **Constraints**:
-    *   Event type is a string union from your types
-    *   Mapping object or simple switch
-    *   No conditionals scattered through JSX
-*   **What this teaches you**:
-    *   Using union types properly
-    *   Centralising display logic
-    *   Designing for extensibility
-*   **Done when**:
-    *   Each event type is visually distinct
-    *   Adding a new type would be obvious where to do
-*   **Watch for**:
-    *   Inline if chaos
-    *   Repeating logic in multiple places
-    *   Hardcoding text everywhere
+
 
 ### TICKET 5 — “Log Event” Button (Dead Button)
 *   **Goal**: Introduce intent without behaviour.

@@ -1,104 +1,85 @@
-// import React from 'react';
-// import bernerImage from "../images/berner.jpeg";
+type EventType = "feed" | "walk" | "toilet" | "meds";
 
-export default function DogStatusCard(props: {
+type DogStatusCardProps = {
   dogName: string;
   dogImage: string;
   lastFedHours: number;
   lastWalkMinutes: number;
   lastToiletHours: number;
   lastMedsHours: number;
-}) {
+};
+
+// EVENT_DISPLAY is an object that must contain an entry for every event type, and each entry must describe how that event looks.
+const EVENT_DISPLAY: Record<EventType, { label: string; colourClass: string }> =
+  {
+    feed: {
+      label: "Fed",
+      colourClass: "bg-green-100 text-green-800",
+    },
+    walk: {
+      label: "Walked",
+      colourClass: "bg-blue-100 text-blue-800",
+    },
+    toilet: {
+      label: "Toilet",
+      colourClass: "bg-yellow-100 text-yellow-800",
+    },
+    meds: {
+      label: "Meds",
+      colourClass: "bg-purple-100 text-purple-800",
+    },
+  };
+
+export default function DogStatusCard(props: DogStatusCardProps) {
   return (
-    <div className="relative bg-neutral-primary-soft max-w-xs w-full p-6 border border-default rounded-base shadow-xs">
+    <div className="max-w-xs w-full p-6 border rounded-lg shadow-sm bg-white">
       <div className="flex flex-col items-center">
         <img
-          className="w-24 h-24 mb-6 rounded-full"
           src={props.dogImage}
-          alt="Bernese Mountain Dog image"
+          alt={props.dogName}
+          className="w-24 h-24 rounded-full mb-4"
         />
-        <h5 className="mb-0.5 text-xl font-semibold tracking-tight text-heading">
-          {props.dogName}
-        </h5>
-        <div className="flex mt-4 md:mt-6 gap-4"></div>
-        <div className="max-w-sm rounded overflow-hidden shadow-lg p-4 mx-auto">
-          <div className="font-bold text-xl mb-2">Basic Card</div>
-          <ul className="text-gray-700 text-base">
-            <li className="font-bold ...">Status labels</li>
-            <li>Last fed: {props.lastFedHours} hours ago</li>
-            <li>Last walk: {props.lastWalkMinutes} minutes ago</li>
-            <li>Last toilet: {props.lastToiletHours} hour ago</li>
-            <li>Last meds: {props.lastMedsHours} hours ago</li>
-          </ul>
-        </div>
+
+        <h3 className="text-lg font-semibold mb-4">{props.dogName}</h3>
+
+        <ul className="w-full space-y-2 text-sm">
+          <li className="flex justify-between items-center">
+            <span
+              className={`px-2 py-0.5 rounded ${EVENT_DISPLAY.feed.colourClass}`}
+            >
+              {EVENT_DISPLAY.feed.label}
+            </span>
+            <span>{props.lastFedHours}h ago</span>
+          </li>
+
+          <li className="flex justify-between items-center">
+            <span
+              className={`px-2 py-0.5 rounded ${EVENT_DISPLAY.walk.colourClass}`}
+            >
+              {EVENT_DISPLAY.walk.label}
+            </span>
+            <span>{props.lastWalkMinutes}m ago</span>
+          </li>
+
+          <li className="flex justify-between items-center">
+            <span
+              className={`px-2 py-0.5 rounded ${EVENT_DISPLAY.toilet.colourClass}`}
+            >
+              {EVENT_DISPLAY.toilet.label}
+            </span>
+            <span>{props.lastToiletHours}h ago</span>
+          </li>
+
+          <li className="flex justify-between items-center">
+            <span
+              className={`px-2 py-0.5 rounded ${EVENT_DISPLAY.meds.colourClass}`}
+            >
+              {EVENT_DISPLAY.meds.label}
+            </span>
+            <span>{props.lastMedsHours}h ago</span>
+          </li>
+        </ul>
       </div>
     </div>
   );
 }
-
-// {
-/* <button
-        id="dropdownButton"
-        data-dropdown-toggle="dropdown"
-        className="absolute top-2 end-2 text-body hover:text-heading bg-neutral-primary-soft box-border border border-transparent hover:bg-neutral-tertiary focus:ring-4 focus:ring-neutral-tertiary rounded-base p-1.5 focus:outline-none"
-        type="button"
-      >
-        <span className="sr-only">Open dropdown</span>
-        <svg
-          className="w-6 h-6"
-          aria-hidden="true"
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeWidth="3"
-            d="M6 12h.01m6 0h.01m5.99 0h.01"
-          />
-        </svg>
-      </button> */
-// }
-
-// {
-//   /* Dropdown menu */
-// }
-// // {
-//   /* <div
-//         id="dropdown"
-//         className="z-10 bg-neutral-primary-medium border border-default-medium rounded-base shadow-lg w-36 block hidden"
-//       >
-//         <ul
-//           className="p-2 text-sm text-body font-medium"
-//           aria-labelledby="dropdownButton"
-//         >
-//           <li>
-//             <a
-//               href="#"
-//               className="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded-md"
-//             >
-//               Edit
-//             </a>
-//           </li>
-//           <li>
-//             <a
-//               href="#"
-//               className="inline-flex items-center w-full p-2 hover:bg-neutral-tertiary-medium hover:text-heading rounded-md"
-//             >
-//               Export Data
-//             </a>
-//           </li>
-//           <li>
-//             <a
-//               href="#"
-//               className="inline-flex items-center w-full p-2 text-fg-danger hover:bg-neutral-tertiary-medium rounded-md"
-//             >
-//               Delete
-//             </a>
-//           </li>
-//         </ul>
-//       </div> */
-// // }
