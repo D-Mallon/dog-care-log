@@ -118,7 +118,7 @@
     *   Clever abstractions
     *   Fighting HTML forms instead of using them
 
-### TICKET 7 — Minimal Navigation (Two Screens Only)
+### TICKET 7 — Minimal Navigation (Two Screens Only) ***DONE
 *   **Goal**: Move between Home and Log Event screens.
 *   **What you’re building**:
     *   Either:
@@ -151,3 +151,108 @@
 *   **Done when**:
     *   You can describe the app’s behaviour without mentioning Supabase
     *   The Home screen already feels useful
+
+TICKET 8 — Lift Dogs Into State
+
+Goal
+Make dogs dynamic instead of static.
+
+Right now dogs is just a constant. That means:
+
+Logging an event cannot change anything.
+
+The UI is fake dynamic.
+
+You need:
+
+const [dogs, setDogs] = useState<Dog[]>(initialDogs);
+
+But you must first define a proper Dog type instead of relying on inferred structure.
+
+What this teaches you
+
+State mutation patterns
+
+Why immutability matters
+
+Why arrays in React need careful updating
+
+Do not implement event updates yet. Just move it into state and make sure everything still renders.
+
+TICKET 9 — Define a Proper Shared Domain Model
+
+You hinted at this earlier. Good instinct.
+
+Right now:
+
+DogStatusCard probably has its own prop types
+
+Your event union lives somewhere else
+
+Data shape is implied, not centralised
+
+Create a types.ts (or similar) and move:
+
+Dog
+
+EventType
+
+Any shared unions
+
+into one place.
+
+This is the beginning of domain modelling. It prevents circular type duplication later.
+
+What this teaches you
+
+Separation of UI and domain
+
+Avoiding type drift
+
+Architectural clarity
+
+TICKET 10 — Select a Dog Before Logging
+
+Currently LogEventScreen doesn’t know:
+
+Which dog you’re logging for
+
+You need one of two approaches:
+
+Option A:
+When clicking “Log event”, pass a selected dog ID.
+
+Option B (cleaner for learning):
+Make LogEventScreen show a dropdown of dogs pulled from App state.
+
+This introduces:
+
+Prop drilling
+
+Controlled inputs
+
+Data flowing downward only
+
+No context API. No global store. Not yet.
+
+TICKET 11 — Wire a Fake Submit Flow
+
+You’re not updating times yet. Just wire the plumbing:
+
+When LogEventScreen submits:
+
+It calls a function passed from App
+
+App logs something to console
+
+Then it switches screen to "home"
+
+This teaches:
+
+Lifting callbacks up
+
+Parent-controlled state
+
+One-way data flow
+
+This is one of the most important React lessons.

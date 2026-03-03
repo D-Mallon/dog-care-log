@@ -1,10 +1,8 @@
-// import { useState } from "react";
 import "./App.css";
-// import React from "react";
 import bernerImage from "./images/berner.jpeg";
-
 import DogStatusCard from "./components/DogStatusCard.tsx";
 import LogEventScreen from "./screens/LogEventScreen.tsx";
+import { useState } from "react";
 
 const dogs = [
   {
@@ -36,26 +34,45 @@ const dogs = [
   },
 ];
 
+type Screen = "home" | "logEvent";
+
 function App() {
-  return (
-    <>
-      <main>
-        <h1>Dog Care Log</h1>
-      </main>
-      <LogEventScreen />
-      {dogs.map((dog, index) => (
-        <DogStatusCard
-          key={index}
-          dogName={dog.dogName}
-          dogImage={dog.dogImage}
-          lastFedHours={dog.lastFedHours}
-          lastWalkMinutes={dog.lastWalkMinutes}
-          lastToiletHours={dog.lastToiletHours}
-          lastMedsHours={dog.lastMedsHours}
-        />
-      ))}
-    </>
-  );
+  const [currentScreen, setCurrentScreen] = useState<Screen>("home");
+
+  function changeScreen(screen: Screen) {
+    setCurrentScreen(screen);
+  }
+
+  if (currentScreen === "home") {
+    return (
+      <>
+        <button onClick={() => changeScreen("logEvent")}>Log event</button>
+        <main>
+          <h1>Dog Care Log</h1>
+        </main>
+        {dogs.map((dog, index) => (
+          <DogStatusCard
+            key={index}
+            dogName={dog.dogName}
+            dogImage={dog.dogImage}
+            lastFedHours={dog.lastFedHours}
+            lastWalkMinutes={dog.lastWalkMinutes}
+            lastToiletHours={dog.lastToiletHours}
+            lastMedsHours={dog.lastMedsHours}
+          />
+        ))}
+      </>
+    );
+  } else if (currentScreen === "logEvent") {
+    return (
+      <>
+        <button onClick={() => changeScreen("home")}>Home</button>
+        <LogEventScreen />
+      </>
+    );
+  } else {
+    return <div>Unknown screen</div>;
+  }
 }
 
 export default App;
