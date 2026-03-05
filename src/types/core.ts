@@ -1,11 +1,16 @@
 export type EventType = "feed" | "walk" | "toilet" | "meds";
 
 export interface Dog {
-  id: string;
-  name: string;
+  dogId: string;
+  dogName: string;
   age?: number;
   weight?: number;
   notes?: string;
+  dogImage: string;
+  lastFedHours: number;
+  lastWalkMinutes: number;
+  lastToiletHours: number;
+  lastMedsHours: number;
 }
 
 export interface CareEvent {
@@ -16,3 +21,5 @@ export interface CareEvent {
   userId: string;
   note?: string;
 }
+
+// need to refactor the dog interface so that it only have dog attributes. logging feeding etc should be moved to CareEvent

@@ -3,8 +3,9 @@ import bernerImage from "./images/berner.jpeg";
 import DogStatusCard from "./components/DogStatusCard.tsx";
 import LogEventScreen from "./screens/LogEventScreen.tsx";
 import { useState } from "react";
+import type { Dog } from "./types/core.ts";
 
-const dogs = [
+const initialDogs: Dog[] = [
   {
     dogId: "1",
     dogName: "Bear K",
@@ -38,6 +39,7 @@ type Screen = "home" | "logEvent";
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home");
+  const [dogs, setDogs] = useState<Dog[]>(initialDogs);
 
   function changeScreen(screen: Screen) {
     setCurrentScreen(screen);
@@ -50,9 +52,9 @@ function App() {
         <main>
           <h1>Dog Care Log</h1>
         </main>
-        {dogs.map((dog, index) => (
+        {dogs.map((dog) => (
           <DogStatusCard
-            key={index}
+            key={dog.dogId}
             dogName={dog.dogName}
             dogImage={dog.dogImage}
             lastFedHours={dog.lastFedHours}
@@ -67,7 +69,7 @@ function App() {
     return (
       <>
         <button onClick={() => changeScreen("home")}>Home</button>
-        <LogEventScreen />
+        <LogEventScreen dogs={dogs} />
       </>
     );
   } else {

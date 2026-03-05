@@ -1,8 +1,9 @@
 import { useState } from "react";
+import type { Dog, EventType } from "../types/core.ts";
 
-export default function LogEventScreen() {
-  const [selectedDog, setSelectedDog] = useState("");
-  const [selectedEvent, setSelectedEvent] = useState("");
+export default function LogEventScreen(props: { dogs: Dog[] }) {
+  const [selectedDog, setSelectedDog] = useState<string>("");
+  const [selectedEvent, setSelectedEvent] = useState<EventType | "">("");
   const [userOptionalNote, setUserOptionalNote] = useState("");
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -23,47 +24,59 @@ export default function LogEventScreen() {
           Which dog?:
           <select
             name="selectedDog"
+            value={selectedDog}
             onChange={(e) => setSelectedDog(e.target.value)}
           >
-            <option value="bear">Bear K</option>
-            <option value="ada">Ada the Shark</option>
-            <option value="bella">Bella</option>
+            <option value="">Select a dog</option>
+
+            {props.dogs.map((dog) => (
+              <option key={dog.dogId} value={dog.dogId}>
+                {dog.dogName}
+              </option>
+            ))}
           </select>
         </label>
         <p>
           <label>
             <input
               type="radio"
-              name="myRadio"
-              value="option1"
-              onChange={() => setSelectedEvent("Fed")}
+              name="event"
+              value="feed"
+              checked={selectedEvent === "feed"}
+              onChange={(e) => setSelectedEvent(e.target.value as EventType)}
             />
             Fed
           </label>
+
           <label>
             <input
               type="radio"
-              name="myRadio"
-              value="option2"
-              onChange={() => setSelectedEvent("Walked")}
+              name="event"
+              value="walk"
+              checked={selectedEvent === "walk"}
+              onChange={(e) => setSelectedEvent(e.target.value as EventType)}
             />
             Walked
           </label>
+
           <label>
             <input
               type="radio"
-              name="myRadio"
-              value="option3"
-              onChange={() => setSelectedEvent("Toilet")}
+              name="event"
+              value="toilet"
+              checked={selectedEvent === "toilet"}
+              onChange={(e) => setSelectedEvent(e.target.value as EventType)}
             />
             Toilet
           </label>
+
           <label>
             <input
               type="radio"
-              name="myRadio"
-              value="option4"
-              onChange={() => setSelectedEvent("Meds")}
+              name="event"
+              value="meds"
+              checked={selectedEvent === "meds"}
+              onChange={(e) => setSelectedEvent(e.target.value as EventType)}
             />
             Meds
           </label>
@@ -72,6 +85,7 @@ export default function LogEventScreen() {
           Optional notes:{" "}
           <input
             name="userOptionalNote"
+            value={userOptionalNote}
             onChange={(e) => setUserOptionalNote(e.target.value)}
           />
         </label>
