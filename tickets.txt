@@ -152,7 +152,7 @@
     *   You can describe the app’s behaviour without mentioning Supabase
     *   The Home screen already feels useful
 
-TICKET 8 — Lift Dogs Into State
+TICKET 8 — Lift Dogs Into State. ***DONE
 
 Goal
 Make dogs dynamic instead of static.
