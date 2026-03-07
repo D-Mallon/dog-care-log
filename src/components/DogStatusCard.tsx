@@ -1,4 +1,4 @@
-type EventType = "feed" | "walk" | "toilet" | "meds";
+import type { EventType } from "../types/core";
 
 type DogStatusCardProps = {
   dogName: string;

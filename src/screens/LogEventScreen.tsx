@@ -9,10 +9,16 @@ export default function LogEventScreen(props: { dogs: Dog[] }) {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!selectedDog || !selectedEvent) {
+      console.log("Please select a dog and event type");
+      return;
+    }
+
     console.log("Submitting form with values:");
     console.log("Selected Dog:", selectedDog);
     console.log("Selected Event:", selectedEvent);
     console.log("User Optional Note:", userOptionalNote);
+    console.log("dogId of selected dog is:", selectedDog);
   }
 
   return (
@@ -22,13 +28,8 @@ export default function LogEventScreen(props: { dogs: Dog[] }) {
         <hr />
         <label>
           Which dog?:
-          <select
-            name="selectedDog"
-            value={selectedDog}
-            onChange={(e) => setSelectedDog(e.target.value)}
-          >
-            <option value="">Select a dog</option>
-
+          <select onChange={(e) => setSelectedDog(e.target.value)}>
+            <option value="">Select a dog...</option>
             {props.dogs.map((dog) => (
               <option key={dog.dogId} value={dog.dogId}>
                 {dog.dogName}
