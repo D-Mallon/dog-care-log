@@ -211,7 +211,7 @@ Avoiding type drift
 
 Architectural clarity
 
-TICKET 10 — Select a Dog Before Logging
+TICKET 10 — Select a Dog Before Logging. ***DONE 
 
 Currently LogEventScreen doesn’t know:
 
@@ -235,7 +235,7 @@ Data flowing downward only
 
 No context API. No global store. Not yet.
 
-TICKET 11 — Wire a Fake Submit Flow
+TICKET 11 — Wire a Fake Submit Flow ***DONE
 
 You’re not updating times yet. Just wire the plumbing:
 
@@ -256,3 +256,141 @@ Parent-controlled state
 One-way data flow
 
 This is one of the most important React lessons.
+
+Next Tickets (12–15)
+
+These will move you from “fake submit” → “real event logging”.
+
+TICKET 12 — Create a CareEvent on Submit ***DONE
+Goal
+
+When the form is submitted, actually create an event object.
+
+Right now you're only logging the form values. Instead you’ll construct a proper object using the type already defined in core.ts.
+
+You already have:
+
+export interface CareEvent {
+  id: string;
+  dogId: string;
+  type: EventType;
+  timestamp: string;
+  userId: string;
+  note?: string;
+}
+What you add
+
+Inside LogEventScreen submit handler:
+
+const newEvent: CareEvent = {
+  id: crypto.randomUUID(),
+  dogId: selectedDogId,
+  type: selectedEvent,
+  timestamp: new Date().toISOString(),
+  userId: "demo-user",
+  note: userOptionalNote || undefined
+};
+
+Then call the callback passed from App:
+
+props.onSubmitEvent(newEvent);
+Concept learned
+
+Creating typed objects in TypeScript
+
+TICKET 13 — Store Events in App State
+
+***Ticket 13 is the most important one conceptually. The setState(prev => [...prev, newEvent]) pattern is something you'll write hundreds of times in React. The reason you use the prev => form instead of just setEvents([...events, newEvent]) is subtle but important — React state updates can be batched, so events inside the handler might be stale by the time it runs. Using the function form guarantees you're always working with the latest version.***
+
+Right now App only logs something.
+
+Now App should store events.
+
+In App.tsx
+
+Add state:
+
+const [events, setEvents] = useState<CareEvent[]>([]);
+
+Then update the handler you passed to LogEventScreen:
+
+function handleLogEvent(event: CareEvent) {
+  setEvents((prev) => [...prev, event]);
+  console.log("Event logged:", event);
+}
+Concept learned
+
+Arrays in React state
+
+Also the pattern:
+
+setState(prev => newState)
+
+This prevents stale state bugs.
+
+TICKET 14 — Show Events on the Home Screen
+
+***Ticket 14 is straightforward — you've already used .map() to render dog cards, so rendering events is the same pattern. The main thing to notice is that you now have two separate arrays in state (dogs and events) that exist independently.***
+
+Now the events actually exist.
+
+Let’s display them.
+
+Create a simple list
+
+Example:
+
+<ul>
+  {events.map((event) => (
+    <li key={event.id}>
+      {event.type} for dog {event.dogId} at {event.timestamp}
+    </li>
+  ))}
+</ul>
+
+Later you’ll improve this to show dog names instead of IDs.
+
+Concept learned
+
+Rendering arrays with .map()
+
+This is another core React pattern.
+
+TICKET 15 — Show Dog Names Instead of IDs
+
+***Ticket 15 is where it gets interesting — you're joining those two arrays together using dogId as the link. This is exactly how relational databases work. The dog?.name syntax with the ? is called optional chaining — it means "if dog exists, give me its name, otherwise give me undefined instead of crashing." You need it because find() can return undefined if no match is found.***
+
+Right now you see:
+
+feed for dog d1
+
+But you want:
+
+Feed for Luna
+
+So you must find the dog that matches the event dogId.
+
+Example:
+
+const dog = dogs.find((dog) => dog.id === event.dogId);
+
+Then render:
+
+<li key={event.id}>
+  {event.type} for {dog?.name} at {event.timestamp}
+</li>
+Concept learned
+
+Relating two pieces of state
+
+You now have:
+
+dogs[]
+
+events[]
+
+linked via
+
+event.dogId
+
+This is basically a tiny relational data model.

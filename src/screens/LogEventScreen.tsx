@@ -1,24 +1,44 @@
 import { useState } from "react";
-import type { Dog, EventType } from "../types/core.ts";
+import type { CareEvent, Dog, EventType } from "../types/core.ts";
 
-export default function LogEventScreen(props: { dogs: Dog[] }) {
-  const [selectedDog, setSelectedDog] = useState<string>("");
+type LogEventScreenProps = {
+  dogs: Dog[];
+  onSubmitEvent: (event: CareEvent) => void;
+};
+
+export default function LogEventScreen(props: LogEventScreenProps) {
+  const [selectedDogId, setSelectedDogId] = useState<string>("");
   const [selectedEvent, setSelectedEvent] = useState<EventType | "">("");
   const [userOptionalNote, setUserOptionalNote] = useState("");
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!selectedDog || !selectedEvent) {
+    if (!selectedDogId || !selectedEvent) {
       console.log("Please select a dog and event type");
       return;
     }
 
+    const updatedData = {
+      dogId: selectedDogId,
+      eventType: selectedEvent,
+      note: userOptionalNote,
+    };
+    const newEvent: CareEvent = {
+      id: crypto.randomUUID(),
+      dogId: selectedDogId,
+      type: selectedEvent,
+      timestamp: new Date().toISOString(),
+      userId: "demo-user", // Replace with actual user ID in a real app
+      note: userOptionalNote,
+    };
+
+    props.onSubmitEvent(newEvent);
+
     console.log("Submitting form with values:");
-    console.log("Selected Dog:", selectedDog);
+    console.log("Selected dogId:", selectedDogId);
     console.log("Selected Event:", selectedEvent);
     console.log("User Optional Note:", userOptionalNote);
-    console.log("dogId of selected dog is:", selectedDog);
   }
 
   return (
@@ -28,7 +48,7 @@ export default function LogEventScreen(props: { dogs: Dog[] }) {
         <hr />
         <label>
           Which dog?:
-          <select onChange={(e) => setSelectedDog(e.target.value)}>
+          <select onChange={(e) => setSelectedDogId(e.target.value)}>
             <option value="">Select a dog...</option>
             {props.dogs.map((dog) => (
               <option key={dog.dogId} value={dog.dogId}>

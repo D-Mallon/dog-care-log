@@ -3,7 +3,7 @@ import bernerImage from "./images/berner.jpeg";
 import DogStatusCard from "./components/DogStatusCard.tsx";
 import LogEventScreen from "./screens/LogEventScreen.tsx";
 import { useState } from "react";
-import type { Dog } from "./types/core.ts";
+import type { CareEvent, Dog, EventType } from "./types/core.ts";
 
 const initialDogs: Dog[] = [
   {
@@ -45,6 +45,11 @@ function App() {
     setCurrentScreen(screen);
   }
 
+  function handleDataFromChild(careEvent: CareEvent) {
+    console.log("New event object:", careEvent);
+    setCurrentScreen("home");
+  }
+
   if (currentScreen === "home") {
     return (
       <>
@@ -69,7 +74,7 @@ function App() {
     return (
       <>
         <button onClick={() => changeScreen("home")}>Home</button>
-        <LogEventScreen dogs={dogs} />
+        <LogEventScreen dogs={dogs} onSubmitEvent={handleDataFromChild} />
       </>
     );
   } else {
