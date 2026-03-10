@@ -328,7 +328,7 @@ setState(prev => newState)
 
 This prevents stale state bugs.
 
-TICKET 14 — Show Events on the Home Screen
+TICKET 14 — Show Events on the Home Screen. ***DONE
 
 ***Ticket 14 is straightforward — you've already used .map() to render dog cards, so rendering events is the same pattern. The main thing to notice is that you now have two separate arrays in state (dogs and events) that exist independently.***
 

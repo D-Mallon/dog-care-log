@@ -70,6 +70,17 @@ function App() {
             lastMedsHours={dog.lastMedsHours}
           />
         ))}
+        <div>
+          <h1>List of Dog Events</h1>
+          <ul>
+            {events.map((event) => (
+              <li key={event.id}>
+                dogID: {event.dogId}, eventID: {event.id} - {event.type} at
+                time: {event.timestamp}
+              </li>
+            ))}
+          </ul>
+        </div>
       </>
     );
   } else if (currentScreen === "logEvent") {
