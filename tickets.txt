@@ -298,7 +298,7 @@ Concept learned
 
 Creating typed objects in TypeScript
 
-TICKET 13 — Store Events in App State
+TICKET 13 — Store Events in App State. ***DONE
 
 ***Ticket 13 is the most important one conceptually. The setState(prev => [...prev, newEvent]) pattern is something you'll write hundreds of times in React. The reason you use the prev => form instead of just setEvents([...events, newEvent]) is subtle but important — React state updates can be batched, so events inside the handler might be stale by the time it runs. Using the function form guarantees you're always working with the latest version.***
 
