@@ -40,12 +40,14 @@ type Screen = "home" | "logEvent";
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home");
   const [dogs, setDogs] = useState<Dog[]>(initialDogs);
+  const [events, setEvents] = useState<CareEvent[]>([]);
 
   function changeScreen(screen: Screen) {
     setCurrentScreen(screen);
   }
 
   function handleDataFromChild(careEvent: CareEvent) {
+    setEvents((prevEvents) => [...prevEvents, careEvent]);
     console.log("New event object:", careEvent);
     setCurrentScreen("home");
   }

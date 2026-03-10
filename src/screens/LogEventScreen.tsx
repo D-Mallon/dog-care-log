@@ -24,6 +24,7 @@ export default function LogEventScreen(props: LogEventScreenProps) {
       eventType: selectedEvent,
       note: userOptionalNote,
     };
+
     const newEvent: CareEvent = {
       id: crypto.randomUUID(),
       dogId: selectedDogId,
