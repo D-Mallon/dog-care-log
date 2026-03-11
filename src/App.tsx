@@ -1,5 +1,7 @@
 import "./App.css";
 import bernerImage from "./images/berner.jpeg";
+import adaImage from "./images/adaImage.jpg";
+import bearImage from "./images/bearImage.jpg";
 import DogStatusCard from "./components/DogStatusCard.tsx";
 import LogEventScreen from "./screens/LogEventScreen.tsx";
 import { useState } from "react";
@@ -9,7 +11,7 @@ const initialDogs: Dog[] = [
   {
     dogId: "1",
     dogName: "Bear K",
-    dogImage: bernerImage,
+    dogImage: bearImage,
     lastFedHours: 2,
     lastWalkMinutes: 30,
     lastToiletHours: 1,
@@ -18,7 +20,7 @@ const initialDogs: Dog[] = [
   {
     dogId: "2",
     dogName: "Ada the Shark",
-    dogImage: bernerImage,
+    dogImage: adaImage,
     lastFedHours: 6,
     lastWalkMinutes: 90,
     lastToiletHours: 2,
@@ -26,7 +28,7 @@ const initialDogs: Dog[] = [
   },
   {
     dogId: "3",
-    dogName: "Bella",
+    dogName: "Bruno",
     dogImage: bernerImage,
     lastFedHours: 1,
     lastWalkMinutes: 45,
@@ -52,6 +54,14 @@ function App() {
     setCurrentScreen("home");
   }
 
+  function getDogSpecificEventsById(dogId: string, dogs: Dog[]): string {
+    if (dogs.length === 0) return "No dog saved to profile";
+    else {
+      const dogSpecificEvents = dogs.find((dog) => dog.dogId === dogId);
+      return dogSpecificEvents ? dogSpecificEvents.dogName : "Unknown Dog";
+    }
+  }
+
   if (currentScreen === "home") {
     return (
       <>
@@ -75,7 +85,7 @@ function App() {
           <ul>
             {events.map((event) => (
               <li key={event.id}>
-                dogID: {event.dogId}, eventID: {event.id} - {event.type} at
+                {getDogSpecificEventsById(event.dogId, dogs)} - {event.type} at
                 time: {event.timestamp}
               </li>
             ))}

@@ -356,7 +356,7 @@ Rendering arrays with .map()
 
 This is another core React pattern.
 
-TICKET 15 — Show Dog Names Instead of IDs
+TICKET 15 — Show Dog Names Instead of IDs  ***DONE
 
 ***Ticket 15 is where it gets interesting — you're joining those two arrays together using dogId as the link. This is exactly how relational databases work. The dog?.name syntax with the ? is called optional chaining — it means "if dog exists, give me its name, otherwise give me undefined instead of crashing." You need it because find() can return undefined if no match is found.***
 
