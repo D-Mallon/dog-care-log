@@ -65,32 +65,85 @@ function App() {
   if (currentScreen === "home") {
     return (
       <>
-        <button onClick={() => changeScreen("logEvent")}>Log event</button>
-        <main>
-          <h1>Dog Care Log</h1>
-        </main>
-        {dogs.map((dog) => (
-          <DogStatusCard
-            key={dog.dogId}
-            dogName={dog.dogName}
-            dogImage={dog.dogImage}
-            lastFedHours={dog.lastFedHours}
-            lastWalkMinutes={dog.lastWalkMinutes}
-            lastToiletHours={dog.lastToiletHours}
-            lastMedsHours={dog.lastMedsHours}
-          />
-        ))}
-        <div>
-          <h1>List of Dog Events</h1>
-          <ul>
-            {events.map((event) => (
-              <li key={event.id}>
-                {getDogSpecificEventsById(event.dogId, dogs)} - {event.type} at
-                time: {event.timestamp}
-              </li>
-            ))}
-          </ul>
+        {/* Header */}
+        <div className="mb-8">
+          <p
+            className="text-xs font-medium tracking-widest uppercase mb-1"
+            style={{ color: "var(--text-muted)" }}
+          >
+            your pack
+          </p>
+          <h1
+            className="text-4xl font-bold"
+            style={{
+              color: "var(--warm-brown)",
+              fontFamily: "Fraunces, serif",
+            }}
+          >
+            Dog Care Log
+          </h1>
         </div>
+
+        {/* Dog Cards */}
+        <div className="flex flex-col gap-4 mb-10">
+          {dogs.map((dog) => (
+            <DogStatusCard
+              key={dog.dogId}
+              dogName={dog.dogName}
+              dogImage={dog.dogImage}
+              lastFedHours={dog.lastFedHours}
+              lastWalkMinutes={dog.lastWalkMinutes}
+              lastToiletHours={dog.lastToiletHours}
+              lastMedsHours={dog.lastMedsHours}
+            />
+          ))}
+        </div>
+
+        {/* Events Log */}
+        {events.length > 0 && (
+          <div
+            className="rounded-2xl p-5"
+            style={{ backgroundColor: "var(--light-tan)" }}
+          >
+            <h2
+              className="text-lg font-semibold mb-4"
+              style={{ color: "var(--warm-brown)" }}
+            >
+              Recent Events
+            </h2>
+            <ul className="flex flex-col gap-3">
+              {events.map((event) => (
+                <li
+                  key={event.id}
+                  className="flex justify-between items-center text-sm py-2 border-b last:border-b-0"
+                  style={{
+                    borderColor: "rgba(124, 92, 62, 0.15)",
+                    color: "var(--text-dark)",
+                  }}
+                >
+                  <span className="font-medium">
+                    {getDogSpecificEventsById(event.dogId, dogs)}
+                  </span>
+                  <span
+                    style={{ color: "var(--text-muted)" }}
+                    className="capitalize"
+                  >
+                    {event.type}
+                  </span>
+                  <span
+                    style={{ color: "var(--text-muted)" }}
+                    className="text-xs"
+                  >
+                    {new Date(event.timestamp).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </>
     );
   } else if (currentScreen === "logEvent") {
