@@ -7,6 +7,7 @@ type DogStatusCardProps = {
   lastWalkMinutes: number;
   lastToiletHours: number;
   lastMedsHours: number;
+  onLogEvent: () => void;
 };
 
 const EVENT_DISPLAY: Record<
@@ -111,7 +112,7 @@ export default function DogStatusCard(props: DogStatusCardProps) {
           backgroundColor: "var(--light-tan)",
           color: "var(--warm-brown)",
         }}
-        onClick={() => console.log(`Log event for ${props.dogName}`)}
+        onClick={props.onLogEvent}
       >
         Log event for {props.dogName}
       </button>

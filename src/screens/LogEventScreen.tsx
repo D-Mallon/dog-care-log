@@ -2,12 +2,14 @@ import { useState } from "react";
 import type { CareEvent, Dog, EventType } from "../types/core.ts";
 
 type LogEventScreenProps = {
-  dogs: Dog[];
+  selectedDogId: string | null;
   onSubmitEvent: (event: CareEvent) => void;
 };
 
 export default function LogEventScreen(props: LogEventScreenProps) {
-  const [selectedDogId, setSelectedDogId] = useState<string>("");
+  const [selectedDogId, setSelectedDogId] = useState<string>(
+    props.selectedDogId || "",
+  );
   const [selectedEvent, setSelectedEvent] = useState<EventType | "">("");
   const [userOptionalNote, setUserOptionalNote] = useState("");
 
@@ -47,17 +49,6 @@ export default function LogEventScreen(props: LogEventScreenProps) {
       <form onSubmit={handleSubmit}>
         <h1>Log an event</h1>
         <hr />
-        <label>
-          Which dog?:
-          <select onChange={(e) => setSelectedDogId(e.target.value)}>
-            <option value="">Select a dog...</option>
-            {props.dogs.map((dog) => (
-              <option key={dog.dogId} value={dog.dogId}>
-                {dog.dogName}
-              </option>
-            ))}
-          </select>
-        </label>
         <p>
           <label>
             <input

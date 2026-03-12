@@ -43,6 +43,7 @@ function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home");
   const [dogs, setDogs] = useState<Dog[]>(initialDogs);
   const [events, setEvents] = useState<CareEvent[]>([]);
+  const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
 
   function changeScreen(screen: Screen) {
     setCurrentScreen(screen);
@@ -54,7 +55,7 @@ function App() {
     setCurrentScreen("home");
   }
 
-  function getDogSpecificEventsById(dogId: string, dogs: Dog[]): string {
+  function getDogNameById(dogId: string, dogs: Dog[]): string {
     if (dogs.length === 0) return "No dog saved to profile";
     else {
       const dogSpecificEvents = dogs.find((dog) => dog.dogId === dogId);
@@ -63,6 +64,10 @@ function App() {
   }
 
   if (currentScreen === "home") {
+    const sortedEvents = [...events].sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
     return (
       <>
         {/* Header */}
@@ -95,6 +100,10 @@ function App() {
               lastWalkMinutes={dog.lastWalkMinutes}
               lastToiletHours={dog.lastToiletHours}
               lastMedsHours={dog.lastMedsHours}
+              onLogEvent={() => {
+                setSelectedDogId(dog.dogId);
+                changeScreen("logEvent");
+              }}
             />
           ))}
         </div>
@@ -112,7 +121,7 @@ function App() {
               Recent Events
             </h2>
             <ul className="flex flex-col gap-3">
-              {events.map((event) => (
+              {sortedEvents.map((event) => (
                 <li
                   key={event.id}
                   className="flex justify-between items-center text-sm py-2 border-b last:border-b-0"
@@ -122,7 +131,7 @@ function App() {
                   }}
                 >
                   <span className="font-medium">
-                    {getDogSpecificEventsById(event.dogId, dogs)}
+                    {getDogNameById(event.dogId, dogs)}
                   </span>
                   <span
                     style={{ color: "var(--text-muted)" }}
@@ -150,7 +159,10 @@ function App() {
     return (
       <>
         <button onClick={() => changeScreen("home")}>Home</button>
-        <LogEventScreen dogs={dogs} onSubmitEvent={handleDataFromChild} />
+        <LogEventScreen
+          selectedDogId={selectedDogId}
+          onSubmitEvent={handleDataFromChild}
+        />
       </>
     );
   } else {
