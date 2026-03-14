@@ -7,10 +7,6 @@ export interface Dog {
   weight?: number;
   notes?: string;
   dogImage: string;
-  lastFedHours: number;
-  lastWalkMinutes: number;
-  lastToiletHours: number;
-  lastMedsHours: number;
 }
 
 export interface CareEvent {

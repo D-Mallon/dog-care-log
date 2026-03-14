@@ -3,10 +3,10 @@ import type { EventType } from "../types/core";
 type DogStatusCardProps = {
   dogName: string;
   dogImage: string;
-  lastFedHours: number;
-  lastWalkMinutes: number;
-  lastToiletHours: number;
-  lastMedsHours: number;
+  lastFedHours: string;
+  lastWalkMinutes: string;
+  lastToiletHours: string;
+  lastMedsHours: string;
   onLogEvent: () => void;
 };
 
@@ -75,16 +75,14 @@ export default function DogStatusCard(props: DogStatusCardProps) {
           <span className="text-xs font-medium text-amber-800">
             {EVENT_DISPLAY.feed.label}
           </span>
-          <span className="text-xs text-amber-600">
-            {props.lastFedHours}h ago
-          </span>
+          <span className="text-xs text-amber-600">{props.lastFedHours}</span>
         </li>
         <li className="rounded-xl px-3 py-2 bg-green-50 flex justify-between items-center">
           <span className="text-xs font-medium text-green-800">
             {EVENT_DISPLAY.walk.label}
           </span>
           <span className="text-xs text-green-600">
-            {props.lastWalkMinutes}m ago
+            {props.lastWalkMinutes}
           </span>
         </li>
         <li className="rounded-xl px-3 py-2 bg-yellow-50 flex justify-between items-center">
@@ -92,16 +90,14 @@ export default function DogStatusCard(props: DogStatusCardProps) {
             {EVENT_DISPLAY.toilet.label}
           </span>
           <span className="text-xs text-yellow-600">
-            {props.lastToiletHours}h ago
+            {props.lastToiletHours}
           </span>
         </li>
         <li className="rounded-xl px-3 py-2 bg-rose-50 flex justify-between items-center">
           <span className="text-xs font-medium text-rose-800">
             {EVENT_DISPLAY.meds.label}
           </span>
-          <span className="text-xs text-rose-600">
-            {props.lastMedsHours}h ago
-          </span>
+          <span className="text-xs text-rose-600">{props.lastMedsHours}</span>
         </li>
       </ul>
 

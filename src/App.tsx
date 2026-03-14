@@ -12,28 +12,16 @@ const initialDogs: Dog[] = [
     dogId: "1",
     dogName: "Bear K",
     dogImage: bearImage,
-    lastFedHours: 2,
-    lastWalkMinutes: 30,
-    lastToiletHours: 1,
-    lastMedsHours: 4,
   },
   {
     dogId: "2",
     dogName: "Ada the Shark",
     dogImage: adaImage,
-    lastFedHours: 6,
-    lastWalkMinutes: 90,
-    lastToiletHours: 2,
-    lastMedsHours: 2,
   },
   {
     dogId: "3",
     dogName: "Bruno",
     dogImage: bernerImage,
-    lastFedHours: 1,
-    lastWalkMinutes: 45,
-    lastToiletHours: 3,
-    lastMedsHours: 1,
   },
 ];
 
@@ -61,6 +49,41 @@ function App() {
       const dogSpecificEvents = dogs.find((dog) => dog.dogId === dogId);
       return dogSpecificEvents ? dogSpecificEvents.dogName : "Unknown Dog";
     }
+  }
+
+  function getTheDogsLastEventTime(
+    dogId: string,
+    eventType: EventType,
+    events: CareEvent[],
+  ): string | null {
+    const matching = events.filter(
+      (event) => event.dogId === dogId && event.type === eventType,
+    );
+
+    const sorted = [...matching].sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+    );
+
+    return sorted[0]?.timestamp ?? null;
+  }
+
+  function getTimeAgo(timestamp: string): string {
+    const diffMs = Date.now() - new Date(timestamp).getTime();
+    const totalMinutes = Math.floor(diffMs / (1000 * 60));
+
+    if (totalMinutes < 60) {
+      return `${totalMinutes}m ago`;
+    }
+
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (minutes === 0) {
+      return `${hours}h ago`;
+    }
+
+    return `${hours}h ${minutes}m ago`;
   }
 
   if (currentScreen === "home") {
@@ -91,21 +114,60 @@ function App() {
 
         {/* Dog Cards */}
         <div className="flex flex-col gap-4 mb-10">
-          {dogs.map((dog) => (
-            <DogStatusCard
-              key={dog.dogId}
-              dogName={dog.dogName}
-              dogImage={dog.dogImage}
-              lastFedHours={dog.lastFedHours}
-              lastWalkMinutes={dog.lastWalkMinutes}
-              lastToiletHours={dog.lastToiletHours}
-              lastMedsHours={dog.lastMedsHours}
-              onLogEvent={() => {
-                setSelectedDogId(dog.dogId);
-                changeScreen("logEvent");
-              }}
-            />
-          ))}
+          {dogs.map((dog) => {
+            const lastFedTimestamp = getTheDogsLastEventTime(
+              dog.dogId,
+              "feed",
+              events,
+            );
+            const lastWalkTimestamp = getTheDogsLastEventTime(
+              dog.dogId,
+              "walk",
+              events,
+            );
+            const lastToiletTimestamp = getTheDogsLastEventTime(
+              dog.dogId,
+              "toilet",
+              events,
+            );
+            const lastMedsTimestamp = getTheDogsLastEventTime(
+              dog.dogId,
+              "meds",
+              events,
+            );
+
+            return (
+              <DogStatusCard
+                key={dog.dogId}
+                dogName={dog.dogName}
+                dogImage={dog.dogImage}
+                lastFedHours={
+                  lastFedTimestamp
+                    ? getTimeAgo(lastFedTimestamp)
+                    : "Nothing recorded yet."
+                }
+                lastWalkMinutes={
+                  lastWalkTimestamp
+                    ? getTimeAgo(lastWalkTimestamp)
+                    : "Nothing recorded yet."
+                }
+                lastToiletHours={
+                  lastToiletTimestamp
+                    ? getTimeAgo(lastToiletTimestamp)
+                    : "Nothing recorded yet."
+                }
+                lastMedsHours={
+                  lastMedsTimestamp
+                    ? getTimeAgo(lastMedsTimestamp)
+                    : "Nothing recorded yet."
+                }
+                onLogEvent={() => {
+                  setSelectedDogId(dog.dogId);
+                  changeScreen("logEvent");
+                }}
+              />
+            );
+          })}
         </div>
 
         {/* Events Log */}
