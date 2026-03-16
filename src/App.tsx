@@ -1,40 +1,57 @@
 import "./App.css";
-import bernerImage from "./images/berner.jpeg";
-import adaImage from "./images/adaImage.jpg";
-import bearImage from "./images/bearImage.jpg";
+// import bernerImage from "./images/berner.jpeg";
+// import adaImage from "./images/adaImage.jpg";
+// import bearImage from "./images/bearImage.jpg";
 import DogStatusCard from "./components/DogStatusCard.tsx";
 import LogEventScreen from "./screens/LogEventScreen.tsx";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { CareEvent, Dog, EventType } from "./types/core.ts";
+import { createClient } from "@supabase/supabase-js";
 
-const initialDogs: Dog[] = [
-  {
-    dogId: "1",
-    dogName: "Bear K",
-    dogImage: bearImage,
-  },
-  {
-    dogId: "2",
-    dogName: "Ada the Shark",
-    dogImage: adaImage,
-  },
-  {
-    dogId: "3",
-    dogName: "Bruno",
-    dogImage: bernerImage,
-  },
-];
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+);
+
+// const initialDogs: Dog[] = [
+//   {
+//     dogId: "1",
+//     dogName: "Bear K",
+//     dogImage: bearImage,
+//   },
+//   {
+//     dogId: "2",
+//     dogName: "Ada the Shark",
+//     dogImage: adaImage,
+//   },
+//   {
+//     dogId: "3",
+//     dogName: "Bruno",
+//     dogImage: bernerImage,
+//   },
+// ];
 
 type Screen = "home" | "logEvent";
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home");
-  const [dogs, setDogs] = useState<Dog[]>(initialDogs);
+  const [dogs, setDogs] = useState<Dog[]>([]);
   const [events, setEvents] = useState<CareEvent[]>([]);
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
 
   function changeScreen(screen: Screen) {
     setCurrentScreen(screen);
+  }
+
+  useEffect(() => {
+    getInitialDogs();
+  }, []);
+
+  async function getInitialDogs() {
+    const { data, error } = await supabase.from("Dogs").select();
+    console.log("data:", data);
+    console.log("error:", error);
+    setDogs(data ?? []);
   }
 
   function handleDataFromChild(careEvent: CareEvent) {
