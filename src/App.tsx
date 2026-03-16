@@ -43,16 +43,24 @@ function App() {
     setCurrentScreen(screen);
   }
 
-  useEffect(() => {
-    getInitialDogs();
-  }, []);
-
   async function getInitialDogs() {
     const { data, error } = await supabase.from("Dogs").select();
     console.log("data:", data);
     console.log("error:", error);
     setDogs(data ?? []);
   }
+
+  async function getInitialEvents() {
+    const { data, error } = await supabase.from("DogEvent").select();
+    console.log("data:", data);
+    console.log("error:", error);
+    setEvents(data ?? []);
+  }
+
+  useEffect(() => {
+    getInitialDogs();
+    getInitialEvents();
+  }, []);
 
   function handleDataFromChild(careEvent: CareEvent) {
     setEvents((prevEvents) => [...prevEvents, careEvent]);
