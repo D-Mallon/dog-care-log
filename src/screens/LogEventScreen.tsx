@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { CareEvent, Dog, EventType } from "../types/core.ts";
+import { supabase } from "../lib/supabase.ts";
 
 type LogEventScreenProps = {
   selectedDogId: string | null;
@@ -13,7 +14,7 @@ export default function LogEventScreen(props: LogEventScreenProps) {
   const [selectedEvent, setSelectedEvent] = useState<EventType | "">("");
   const [userOptionalNote, setUserOptionalNote] = useState("");
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!selectedDogId || !selectedEvent) {
@@ -35,6 +36,20 @@ export default function LogEventScreen(props: LogEventScreenProps) {
       userId: "demo-user", // Replace with actual user ID in a real app
       note: userOptionalNote,
     };
+
+    const { error } = await supabase.from("DogEvent").insert({
+      id: newEvent.id,
+      dogId: selectedDogId,
+      type: selectedEvent,
+      timestamp: newEvent.timestamp,
+      userId: "demo-user",
+      note: userOptionalNote || null,
+    });
+
+    if (error) {
+      console.error("Error inserting event into database:", error);
+      return;
+    }
 
     props.onSubmitEvent(newEvent);
 
