@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase.ts";
 type LogEventScreenProps = {
   selectedDogId: string | null;
   onSubmitEvent: (event: CareEvent) => void;
+  userIdInDB: string;
 };
 
 export default function LogEventScreen(props: LogEventScreenProps) {
@@ -22,18 +23,18 @@ export default function LogEventScreen(props: LogEventScreenProps) {
       return;
     }
 
-    const updatedData = {
-      dogId: selectedDogId,
-      eventType: selectedEvent,
-      note: userOptionalNote,
-    };
+    // const updatedData = {
+    //   dogId: selectedDogId,
+    //   eventType: selectedEvent,
+    //   note: userOptionalNote,
+    // };
 
     const newEvent: CareEvent = {
       id: crypto.randomUUID(),
       dogId: selectedDogId,
       type: selectedEvent,
       timestamp: new Date().toISOString(),
-      userId: "demo-user", // Replace with actual user ID in a real app
+      userId: props.userIdInDB,
       note: userOptionalNote,
     };
 
@@ -42,7 +43,7 @@ export default function LogEventScreen(props: LogEventScreenProps) {
       dogId: selectedDogId,
       type: selectedEvent,
       timestamp: newEvent.timestamp,
-      userId: "demo-user",
+      userId: newEvent.userId,
       note: userOptionalNote || null,
     });
 

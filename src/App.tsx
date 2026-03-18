@@ -4,32 +4,11 @@ import "./App.css";
 // import bearImage from "./images/bearImage.jpg";
 import DogStatusCard from "./components/DogStatusCard.tsx";
 import LogEventScreen from "./screens/LogEventScreen.tsx";
+import AuthScreen from "./screens/AuthScreen.tsx";
 import { useEffect, useState } from "react";
 import type { CareEvent, Dog, EventType } from "./types/core.ts";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-);
-
-// const initialDogs: Dog[] = [
-//   {
-//     dogId: "1",
-//     dogName: "Bear K",
-//     dogImage: bearImage,
-//   },
-//   {
-//     dogId: "2",
-//     dogName: "Ada the Shark",
-//     dogImage: adaImage,
-//   },
-//   {
-//     dogId: "3",
-//     dogName: "Bruno",
-//     dogImage: bernerImage,
-//   },
-// ];
+import { supabase } from "./lib/supabase.ts";
+import type { JwtPayload } from "@supabase/supabase-js";
 
 type Screen = "home" | "logEvent";
 
@@ -38,6 +17,24 @@ function App() {
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [events, setEvents] = useState<CareEvent[]>([]);
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
+  const [claims, setClaims] = useState<JwtPayload | null>(null);
+  // claims is the decoded JWT token which contains user info and is null if not authenticated. It is created when Supabase.auth.getClaims() is called, which is done on initial render and whenever the auth state changes.
+
+  useEffect(() => {
+    // Check for existing session using getClaims
+    supabase.auth.getClaims().then(({ data }) => {
+      setClaims(data?.claims ?? null);
+    });
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      supabase.auth.getClaims().then(({ data }) => {
+        setClaims(data?.claims ?? null);
+      });
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   function changeScreen(screen: Screen) {
     setCurrentScreen(screen);
@@ -58,9 +55,11 @@ function App() {
   }
 
   useEffect(() => {
-    getInitialDogs();
-    getInitialEvents();
-  }, []);
+    if (claims) {
+      getInitialDogs();
+      getInitialEvents();
+    }
+  }, [claims]);
 
   function handleDataFromChild(careEvent: CareEvent) {
     setEvents((prevEvents) => [...prevEvents, careEvent]);
@@ -111,7 +110,8 @@ function App() {
     return `${hours}h ${minutes}m ago`;
   }
 
-  if (currentScreen === "home") {
+  if (!claims) return <AuthScreen />;
+  else if (currentScreen === "home") {
     const sortedEvents = [...events].sort(
       (a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
@@ -119,6 +119,7 @@ function App() {
     return (
       <>
         {/* Header */}
+        <button onClick={() => supabase.auth.signOut()}>Logout</button>
         <div className="mb-8">
           <p
             className="text-xs font-medium tracking-widest uppercase mb-1"
@@ -249,6 +250,7 @@ function App() {
         <LogEventScreen
           selectedDogId={selectedDogId}
           onSubmitEvent={handleDataFromChild}
+          userIdInDB={claims.sub} // Pass the user ID from the JWT claims to the LogEventScreen
         />
       </>
     );
