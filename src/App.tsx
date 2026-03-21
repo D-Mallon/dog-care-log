@@ -140,60 +140,66 @@ function App() {
 
         {/* Dog Cards */}
         <div className="flex flex-col gap-4 mb-10">
-          {dogs.map((dog) => {
-            const lastFedTimestamp = getTheDogsLastEventTime(
-              dog.dogId,
-              "feed",
-              events,
-            );
-            const lastWalkTimestamp = getTheDogsLastEventTime(
-              dog.dogId,
-              "walk",
-              events,
-            );
-            const lastToiletTimestamp = getTheDogsLastEventTime(
-              dog.dogId,
-              "toilet",
-              events,
-            );
-            const lastMedsTimestamp = getTheDogsLastEventTime(
-              dog.dogId,
-              "meds",
-              events,
-            );
+          {dogs.length === 0 ? (
+            <p style={{ color: "var(--text-muted)" }}>
+              You haven't linked any dogs to your account yet.
+            </p>
+          ) : (
+            dogs.map((dog) => {
+              const lastFedTimestamp = getTheDogsLastEventTime(
+                dog.dogId,
+                "feed",
+                events,
+              );
+              const lastWalkTimestamp = getTheDogsLastEventTime(
+                dog.dogId,
+                "walk",
+                events,
+              );
+              const lastToiletTimestamp = getTheDogsLastEventTime(
+                dog.dogId,
+                "toilet",
+                events,
+              );
+              const lastMedsTimestamp = getTheDogsLastEventTime(
+                dog.dogId,
+                "meds",
+                events,
+              );
 
-            return (
-              <DogStatusCard
-                key={dog.dogId}
-                dogName={dog.dogName}
-                dogImage={dog.dogImage}
-                lastFedHours={
-                  lastFedTimestamp
-                    ? getTimeAgo(lastFedTimestamp)
-                    : "Nothing recorded yet."
-                }
-                lastWalkMinutes={
-                  lastWalkTimestamp
-                    ? getTimeAgo(lastWalkTimestamp)
-                    : "Nothing recorded yet."
-                }
-                lastToiletHours={
-                  lastToiletTimestamp
-                    ? getTimeAgo(lastToiletTimestamp)
-                    : "Nothing recorded yet."
-                }
-                lastMedsHours={
-                  lastMedsTimestamp
-                    ? getTimeAgo(lastMedsTimestamp)
-                    : "Nothing recorded yet."
-                }
-                onLogEvent={() => {
-                  setSelectedDogId(dog.dogId);
-                  changeScreen("logEvent");
-                }}
-              />
-            );
-          })}
+              return (
+                <DogStatusCard
+                  key={dog.dogId}
+                  dogName={dog.dogName}
+                  dogImage={dog.dogImage}
+                  lastFedHours={
+                    lastFedTimestamp
+                      ? getTimeAgo(lastFedTimestamp)
+                      : "Nothing recorded yet."
+                  }
+                  lastWalkMinutes={
+                    lastWalkTimestamp
+                      ? getTimeAgo(lastWalkTimestamp)
+                      : "Nothing recorded yet."
+                  }
+                  lastToiletHours={
+                    lastToiletTimestamp
+                      ? getTimeAgo(lastToiletTimestamp)
+                      : "Nothing recorded yet."
+                  }
+                  lastMedsHours={
+                    lastMedsTimestamp
+                      ? getTimeAgo(lastMedsTimestamp)
+                      : "Nothing recorded yet."
+                  }
+                  onLogEvent={() => {
+                    setSelectedDogId(dog.dogId);
+                    changeScreen("logEvent");
+                  }}
+                />
+              );
+            })
+          )}
         </div>
 
         {/* Events Log */}
