@@ -4,13 +4,14 @@ import "./App.css";
 // import bearImage from "./images/bearImage.jpg";
 import DogStatusCard from "./components/DogStatusCard.tsx";
 import LogEventScreen from "./screens/LogEventScreen.tsx";
+import RegisterNewDogScreen from "./screens/RegisterNewDogScreen.tsx";
 import AuthScreen from "./screens/AuthScreen.tsx";
 import { useEffect, useState } from "react";
 import type { CareEvent, Dog, EventType } from "./types/core.ts";
 import { supabase } from "./lib/supabase.ts";
 import type { JwtPayload } from "@supabase/supabase-js";
 
-type Screen = "home" | "logEvent";
+type Screen = "home" | "logEvent" | "addDog";
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home");
@@ -47,7 +48,7 @@ function App() {
     setDogs(data ?? []);
   }
 
-  async function getInitialEvents() {
+  async function getDogEvents() {
     const { data, error } = await supabase.from("DogEvent").select();
     console.log("data:", data);
     console.log("error:", error);
@@ -57,13 +58,19 @@ function App() {
   useEffect(() => {
     if (claims) {
       getInitialDogs();
-      getInitialEvents();
+      getDogEvents();
     }
   }, [claims]);
 
-  function handleDataFromChild(careEvent: CareEvent) {
+  function handleDataFromChildNewEvent(careEvent: CareEvent) {
     setEvents((prevEvents) => [...prevEvents, careEvent]);
     console.log("New event object:", careEvent);
+    setCurrentScreen("home");
+  }
+
+  function handleDataFromChildNewDog(newDog: Dog) {
+    console.log("New dog object:", newDog);
+    getInitialDogs();
     setCurrentScreen("home");
   }
 
@@ -137,6 +144,18 @@ function App() {
             Dog Care Log
           </h1>
         </div>
+
+        <button
+          className="mb-6 px-4 py-2 rounded-lg"
+          style={{
+            backgroundColor: "var(--warm-brown)",
+            color: "white",
+            fontWeight: "bold",
+          }}
+          onClick={() => changeScreen("addDog")}
+        >
+          + Add a Dog
+        </button>
 
         {/* Dog Cards */}
         <div className="flex flex-col gap-4 mb-10">
@@ -255,8 +274,18 @@ function App() {
         <button onClick={() => changeScreen("home")}>Home</button>
         <LogEventScreen
           selectedDogId={selectedDogId}
-          onSubmitEvent={handleDataFromChild}
+          onSubmitEvent={handleDataFromChildNewEvent}
           userIdInDB={claims.sub} // Pass the user ID from the JWT claims to the LogEventScreen
+        />
+      </>
+    );
+  } else if (currentScreen === "addDog") {
+    return (
+      <>
+        <button onClick={() => changeScreen("home")}>Home</button>
+        <RegisterNewDogScreen
+          userIdInDB={claims.sub}
+          onSubmitDog={handleDataFromChildNewDog}
         />
       </>
     );
