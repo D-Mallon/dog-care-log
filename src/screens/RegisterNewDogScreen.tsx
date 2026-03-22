@@ -9,6 +9,8 @@ type AddDogScreenProps = {
 
 export default function RegisterNewDogScreen(props: AddDogScreenProps) {
   const [newDogName, setNewDogName] = useState<string>("");
+  const [newDogAge, setNewDogAge] = useState<Number | null>(null);
+  const [newDogWeight, setNewDogWeight] = useState<Number | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,6 +27,8 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
       dogId: newDog.dogId,
       dogName: newDog.dogName,
       dogImage: "",
+      age: newDogAge,
+      weight: newDogWeight,
     });
 
     if (error) {
@@ -45,12 +49,32 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
         <hr />
         <p>
           <label>
+            What is your dog's name?
             <input
               type="text"
               name="addNewDogName"
               onChange={(e) => setNewDogName(e.target.value)}
             />
-            What is your dog's name?
+          </label>
+          Age?{" "}
+          <label>
+            <input
+              type="text"
+              name="addNewDogAge"
+              onChange={(e) =>
+                setNewDogAge(e.target.value ? Number(e.target.value) : null)
+              }
+            />
+          </label>
+          Weight
+          <label>
+            <input
+              type="text"
+              name="addNewDogWeight"
+              onChange={(e) =>
+                setNewDogWeight(e.target.value ? Number(e.target.value) : null)
+              }
+            />
           </label>
         </p>
         <button type="submit">Add Dog to your pack</button>
