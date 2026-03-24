@@ -3,7 +3,7 @@ export type EventType = "feed" | "walk" | "toilet" | "meds";
 export interface Dog {
   dogId: string;
   dogName: string;
-  dogOwner: string;
+  userId: string;
   age?: number;
   weight?: number;
   notes?: string;

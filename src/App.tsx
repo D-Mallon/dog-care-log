@@ -125,42 +125,31 @@ function App() {
     );
     return (
       <>
-        {/* Header */}
-        <button onClick={() => supabase.auth.signOut()}>Logout</button>
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="mb-6 px-4 py-2 rounded-lg bg-warm-brown text-white font-bold"
+        >
+          Logout
+        </button>
         <div className="mb-8">
-          <p
-            className="text-xs font-medium tracking-widest uppercase mb-1"
-            style={{ color: "var(--text-muted)" }}
-          >
+          <p className="text-xs font-medium tracking-widest uppercase text-text-muted mb-1">
             your pack
           </p>
-          <h1
-            className="text-4xl font-bold"
-            style={{
-              color: "var(--warm-brown)",
-              fontFamily: "Fraunces, serif",
-            }}
-          >
+          <h1 className="text-4xl font-bold font-fraunces text-warm-brown">
             Dog Care Log
           </h1>
         </div>
 
         <button
-          className="mb-6 px-4 py-2 rounded-lg"
-          style={{
-            backgroundColor: "var(--warm-brown)",
-            color: "white",
-            fontWeight: "bold",
-          }}
+          className="mb-6 px-4 py-2 rounded-lg bg-warm-brown text-white font-bold hover:opacity-90 transition-opacity"
           onClick={() => changeScreen("addDog")}
         >
           + Add a Dog
         </button>
 
-        {/* Dog Cards */}
         <div className="flex flex-col gap-4 mb-10">
           {dogs.length === 0 ? (
-            <p style={{ color: "var(--text-muted)" }}>
+            <p className="text-text-muted">
               You haven't linked any dogs to your account yet.
             </p>
           ) : (
@@ -221,41 +210,24 @@ function App() {
           )}
         </div>
 
-        {/* Events Log */}
         {events.length > 0 && (
-          <div
-            className="rounded-2xl p-5"
-            style={{ backgroundColor: "var(--light-tan)" }}
-          >
-            <h2
-              className="text-lg font-semibold mb-4"
-              style={{ color: "var(--warm-brown)" }}
-            >
+          <div className="rounded-2xl p-5 bg-light-tan">
+            <h2 className="text-lg font-semibold mb-4 text-warm-brown">
               Recent Events
             </h2>
             <ul className="flex flex-col gap-3">
               {sortedEvents.map((event) => (
                 <li
                   key={event.id}
-                  className="flex justify-between items-center text-sm py-2 border-b last:border-b-0"
-                  style={{
-                    borderColor: "rgba(124, 92, 62, 0.15)",
-                    color: "var(--text-dark)",
-                  }}
+                  className="flex justify-between items-center text-sm py-2 border-b border-warm-brown/15 text-text-dark last:border-b-0"
                 >
                   <span className="font-medium">
                     {getDogNameById(event.dogId, dogs)}
                   </span>
-                  <span
-                    style={{ color: "var(--text-muted)" }}
-                    className="capitalize"
-                  >
+                  <span className="capitalize text-text-muted">
                     {event.type}
                   </span>
-                  <span
-                    style={{ color: "var(--text-muted)" }}
-                    className="text-xs"
-                  >
+                  <span className="text-xs text-text-muted">
                     {new Date(event.timestamp).toLocaleTimeString([], {
                       hour: "2-digit",
                       minute: "2-digit",
@@ -271,18 +243,28 @@ function App() {
   } else if (currentScreen === "logEvent") {
     return (
       <>
-        <button onClick={() => changeScreen("home")}>Home</button>
+        <button
+          onClick={() => changeScreen("home")}
+          className="mb-6 px-4 py-2 rounded-lg bg-warm-brown text-white font-bold"
+        >
+          Home
+        </button>
         <LogEventScreen
           selectedDogId={selectedDogId}
           onSubmitEvent={handleDataFromChildNewEvent}
-          userIdInDB={claims.sub} // Pass the user ID from the JWT claims to the LogEventScreen
+          userIdInDB={claims.sub}
         />
       </>
     );
   } else if (currentScreen === "addDog") {
     return (
       <>
-        <button onClick={() => changeScreen("home")}>Home</button>
+        <button
+          onClick={() => changeScreen("home")}
+          className="mb-6 px-4 py-2 rounded-lg bg-warm-brown text-white font-bold"
+        >
+          Home
+        </button>
         <RegisterNewDogScreen
           userIdInDB={claims.sub}
           onSubmitDog={handleDataFromChildNewDog}

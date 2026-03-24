@@ -4,82 +4,23 @@ import { supabase } from "../lib/supabase.ts";
 
 export default function AuthScreen() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--cream)",
-        backgroundImage:
-          "radial-gradient(ellipse at 20% 10%, rgba(232, 169, 106, 0.15) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(143, 168, 136, 0.12) 0%, transparent 50%)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem 1.25rem",
-      }}
-    >
-      {/* Logo / header */}
-      <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-        <div
-          style={{
-            width: "64px",
-            height: "64px",
-            borderRadius: "20px",
-            backgroundColor: "var(--warm-brown)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            margin: "0 auto 1rem",
-            fontSize: "28px",
-          }}
-        >
+    <div className="min-h-screen bg-cream bg-auth-pattern flex flex-col items-center justify-center p-8">
+      <div className="text-center mb-10">
+        <div className="w-16 h-16 rounded-3xl bg-warm-brown flex items-center justify-center mx-auto mb-4 text-3xl">
           🐾
         </div>
-        <p
-          style={{
-            fontSize: "0.7rem",
-            fontWeight: 600,
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-            color: "var(--text-muted)",
-            marginBottom: "0.25rem",
-          }}
-        >
+        <p className="text-xs font-semibold tracking-widest uppercase text-text-muted mb-1">
           welcome to
         </p>
-        <h1
-          style={{
-            fontFamily: "Fraunces, serif",
-            fontSize: "2.25rem",
-            fontWeight: 700,
-            color: "var(--warm-brown)",
-            margin: 0,
-          }}
-        >
+        <h1 className="text-4xl font-bold font-fraunces text-warm-brown m-0">
           Dog Care Log
         </h1>
-        <p
-          style={{
-            color: "var(--text-muted)",
-            fontSize: "0.875rem",
-            marginTop: "0.5rem",
-          }}
-        >
+        <p className="text-sm text-text-muted mt-2">
           Keep your pack happy and healthy
         </p>
       </div>
 
-      {/* Auth card */}
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "400px",
-          backgroundColor: "white",
-          borderRadius: "1.5rem",
-          padding: "2rem",
-          border: "1px solid rgba(124, 92, 62, 0.1)",
-          boxShadow: "0 4px 24px rgba(124, 92, 62, 0.08)",
-        }}
-      >
+      <div className="w-full max-w-md bg-white rounded-3xl p-8 border border-warm-brown/10 shadow-card">
         <Auth
           supabaseClient={supabase}
           appearance={{
