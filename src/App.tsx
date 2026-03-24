@@ -20,6 +20,7 @@ function App() {
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
   const [claims, setClaims] = useState<JwtPayload | null>(null);
   // claims is the decoded JWT token which contains user info and is null if not authenticated. It is created when Supabase.auth.getClaims() is called, which is done on initial render and whenever the auth state changes.
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Check for existing session using getClaims
@@ -46,6 +47,7 @@ function App() {
     console.log("data:", data);
     console.log("error:", error);
     setDogs(data ?? []);
+    setIsLoading(false);
   }
 
   async function getDogEvents() {
@@ -119,6 +121,10 @@ function App() {
 
   if (!claims) return <AuthScreen />;
   else if (currentScreen === "home") {
+    if (isLoading) {
+      return <p style={{ color: "var(--text-muted)" }}>Loading your pack...</p>;
+    }
+
     const sortedEvents = [...events].sort(
       (a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
