@@ -7,28 +7,10 @@ type AddDogScreenProps = {
   userIdInDB: string;
 };
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "0.75rem 1rem",
-  borderRadius: "0.875rem",
-  border: "1.5px solid rgba(124, 92, 62, 0.2)",
-  backgroundColor: "var(--cream)",
-  color: "var(--text-dark)",
-  fontSize: "0.9rem",
-  fontFamily: "DM Sans, sans-serif",
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: "0.8rem",
-  fontWeight: 600,
-  color: "var(--text-muted)",
-  marginBottom: "0.5rem",
-  textTransform: "uppercase",
-  letterSpacing: "0.08em",
-};
+const inputClass =
+  "w-full px-4 py-3 rounded-xl border-2 bg-cream text-text-dark text-sm font-dm-sans outline-none focus:border-warm-brown/50 transition-colors";
+const labelClass =
+  "block text-xs font-semibold text-text-muted uppercase tracking-widest mb-2";
 
 export default function RegisterNewDogScreen(props: AddDogScreenProps) {
   const [newDogName, setNewDogName] = useState<string>("");
@@ -85,6 +67,9 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
       dogId: crypto.randomUUID(),
       dogName: newDogName,
       dogImage: newDogImageUrl,
+      userId: props.userIdInDB,
+      age: newDogAge ?? undefined,
+      weight: newDogWeight ?? undefined,
     };
 
     const { error } = await supabase.from("Dogs").insert({
@@ -106,129 +91,80 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
   }
 
   return (
-    <div style={{ paddingTop: "1rem" }}>
-      {/* Header */}
-      <div style={{ marginBottom: "2rem" }}>
-        <p
-          style={{
-            fontSize: "0.7rem",
-            fontWeight: 600,
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-            color: "var(--text-muted)",
-            marginBottom: "0.25rem",
-          }}
-        >
+    <div className="pt-4">
+      <div className="mb-8">
+        <p className="text-xs font-semibold tracking-widest uppercase text-text-muted mb-1">
           growing your pack
         </p>
-        <h1
-          style={{
-            fontFamily: "Fraunces, serif",
-            fontSize: "2rem",
-            fontWeight: 700,
-            color: "var(--warm-brown)",
-            margin: 0,
-          }}
-        >
+        <h1 className="text-4xl font-bold font-fraunces text-warm-brown m-0">
           Add a Dog
         </h1>
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* Photo upload */}
-        <div style={{ marginBottom: "1.5rem", textAlign: "center" }}>
-          <label
-            style={{
-              display: "inline-block",
-              cursor: "pointer",
-            }}
-          >
+        <div className="mb-6 text-center">
+          <label className="inline-block cursor-pointer">
             <div
-              style={{
-                width: "100px",
-                height: "100px",
-                borderRadius: "1.5rem",
-                border: "2px dashed rgba(124, 92, 62, 0.3)",
-                backgroundColor: previewUrl
-                  ? "transparent"
-                  : "var(--light-tan)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto 0.5rem",
-                overflow: "hidden",
-                transition: "border-color 0.15s ease",
-              }}
+              className={`w-24 h-24 mx-auto mb-2 overflow-hidden rounded-2xl border-2 border-dashed ${
+                previewUrl
+                  ? "border-transparent"
+                  : "border-warm-brown/30 bg-light-tan"
+              } flex items-center justify-center transition-colors`}
             >
               {previewUrl ? (
                 <img
                   src={previewUrl}
                   alt="Preview"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  className="w-full h-full object-cover"
                 />
               ) : (
-                <span style={{ fontSize: "2rem" }}>📷</span>
+                <span className="text-3xl">📷</span>
               )}
             </div>
-            <p
-              style={{
-                fontSize: "0.8rem",
-                color: "var(--text-muted)",
-                margin: 0,
-              }}
-            >
+            <p className="text-xs text-text-muted m-0">
               {previewUrl ? "Change photo" : "Add a photo"}
             </p>
             <input
               type="file"
               accept="image/*"
               onChange={handleImageChange}
-              style={{ display: "none" }}
+              className="hidden"
             />
           </label>
         </div>
 
-        {/* Dog name */}
-        <div style={{ marginBottom: "1.25rem" }}>
-          <label style={labelStyle}>Dog's name *</label>
+        <div className="mb-5">
+          <label className={labelClass}>Dog's name *</label>
           <input
             type="text"
             placeholder="e.g. Bear K"
-            style={inputStyle}
+            className={inputClass}
             onChange={(e) => setNewDogName(e.target.value)}
           />
         </div>
 
-        {/* Age and weight side by side */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "1rem",
-            marginBottom: "2rem",
-          }}
-        >
+        <div className="grid grid-cols-2 gap-4 mb-8">
           <div>
-            <label style={labelStyle}>Age (years)</label>
+            <label className={labelClass}>Age (years)</label>
             <input
               type="number"
               min="0"
               max="30"
               placeholder="e.g. 3"
-              style={inputStyle}
+              className={inputClass}
               onChange={(e) =>
                 setNewDogAge(e.target.value ? Number(e.target.value) : null)
               }
             />
           </div>
           <div>
-            <label style={labelStyle}>Weight (kg)</label>
+            <label className={labelClass}>Weight (kg)</label>
             <input
               type="number"
               min="0"
               max="200"
               placeholder="e.g. 28"
-              style={inputStyle}
+              className={inputClass}
               onChange={(e) =>
                 setNewDogWeight(e.target.value ? Number(e.target.value) : null)
               }
@@ -236,25 +172,14 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
           </div>
         </div>
 
-        {/* Submit */}
         <button
           type="submit"
           disabled={isSubmitting}
-          style={{
-            width: "100%",
-            padding: "0.875rem",
-            borderRadius: "0.875rem",
-            border: "none",
-            backgroundColor: isSubmitting
-              ? "rgba(124, 92, 62, 0.3)"
-              : "var(--warm-brown)",
-            color: "white",
-            fontSize: "0.95rem",
-            fontWeight: 600,
-            fontFamily: "DM Sans, sans-serif",
-            cursor: isSubmitting ? "not-allowed" : "pointer",
-            transition: "opacity 0.15s ease",
-          }}
+          className={`w-full py-3.5 rounded-xl text-base font-semibold transition-all duration-150 ${
+            isSubmitting
+              ? "bg-warm-brown/30 text-white cursor-not-allowed"
+              : "bg-warm-brown text-white hover:opacity-90 active:scale-98"
+          }`}
         >
           {isSubmitting ? "Adding..." : "Add to your pack 🐾"}
         </button>

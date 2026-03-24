@@ -14,6 +14,8 @@ const EVENT_OPTIONS: {
   emoji: string;
   colour: string;
   bg: string;
+  border: string;
+  text: string;
 }[] = [
   {
     value: "feed",
@@ -21,6 +23,8 @@ const EVENT_OPTIONS: {
     emoji: "🍖",
     colour: "#92400e",
     bg: "#fef3c7",
+    border: "#92400e",
+    text: "#92400e",
   },
   {
     value: "walk",
@@ -28,6 +32,8 @@ const EVENT_OPTIONS: {
     emoji: "🦮",
     colour: "#065f46",
     bg: "#d1fae5",
+    border: "#065f46",
+    text: "#065f46",
   },
   {
     value: "toilet",
@@ -35,6 +41,8 @@ const EVENT_OPTIONS: {
     emoji: "🌿",
     colour: "#78350f",
     bg: "#fef9c3",
+    border: "#78350f",
+    text: "#78350f",
   },
   {
     value: "meds",
@@ -42,8 +50,13 @@ const EVENT_OPTIONS: {
     emoji: "💊",
     colour: "#9f1239",
     bg: "#ffe4e6",
+    border: "#9f1239",
+    text: "#9f1239",
   },
 ];
+
+const labelClass =
+  "block text-xs font-semibold text-text-muted uppercase tracking-widest mb-2";
 
 export default function LogEventScreen(props: LogEventScreenProps) {
   const [selectedDogId] = useState<string>(props.selectedDogId || "");
@@ -84,155 +97,78 @@ export default function LogEventScreen(props: LogEventScreenProps) {
   }
 
   return (
-    <div style={{ paddingTop: "1rem" }}>
-      {/* Header */}
-      <div style={{ marginBottom: "2rem" }}>
-        <p
-          style={{
-            fontSize: "0.7rem",
-            fontWeight: 600,
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-            color: "var(--text-muted)",
-            marginBottom: "0.25rem",
-          }}
-        >
+    <div className="pt-4">
+      <div className="mb-8">
+        <p className="text-xs font-semibold tracking-widest uppercase text-text-muted mb-1">
           what happened?
         </p>
-        <h1
-          style={{
-            fontFamily: "Fraunces, serif",
-            fontSize: "2rem",
-            fontWeight: 700,
-            color: "var(--warm-brown)",
-            margin: 0,
-          }}
-        >
+        <h1 className="text-4xl font-bold font-fraunces text-warm-brown m-0">
           Log an Event
         </h1>
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* Event type selector */}
-        <div style={{ marginBottom: "1.5rem" }}>
-          <p
-            style={{
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              color: "var(--text-muted)",
-              marginBottom: "0.75rem",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-            }}
-          >
-            Event type
-          </p>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "0.75rem",
-            }}
-          >
-            {EVENT_OPTIONS.map((option) => (
-              <label
-                key={option.value}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.75rem",
-                  padding: "0.875rem 1rem",
-                  borderRadius: "1rem",
-                  border: `2px solid ${selectedEvent === option.value ? option.colour : "rgba(124, 92, 62, 0.12)"}`,
-                  backgroundColor:
-                    selectedEvent === option.value ? option.bg : "white",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                <input
-                  type="radio"
-                  name="event"
-                  value={option.value}
-                  checked={selectedEvent === option.value}
-                  onChange={(e) =>
-                    setSelectedEvent(e.target.value as EventType)
-                  }
-                  style={{ display: "none" }}
-                />
-                <span style={{ fontSize: "1.25rem" }}>{option.emoji}</span>
-                <span
+        <div className="mb-6">
+          <p className={labelClass}>Event type</p>
+          <div className="grid grid-cols-2 gap-3">
+            {EVENT_OPTIONS.map((option) => {
+              const isSelected = selectedEvent === option.value;
+              return (
+                <label
+                  key={option.value}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 cursor-pointer transition-all duration-150 ${
+                    isSelected
+                      ? "border-warm-brown/50"
+                      : "border-warm-brown/12"
+                  }`}
                   style={{
-                    fontSize: "0.9rem",
-                    fontWeight: 600,
-                    color:
-                      selectedEvent === option.value
-                        ? option.colour
-                        : "var(--text-dark)",
+                    backgroundColor: isSelected ? option.bg : "white",
                   }}
                 >
-                  {option.label}
-                </span>
-              </label>
-            ))}
+                  <input
+                    type="radio"
+                    name="event"
+                    value={option.value}
+                    checked={isSelected}
+                    onChange={(e) =>
+                      setSelectedEvent(e.target.value as EventType)
+                    }
+                    className="hidden"
+                  />
+                  <span className="text-xl">{option.emoji}</span>
+                  <span
+                    className="text-sm font-semibold"
+                    style={{
+                      color: isSelected ? option.text : "var(--text-dark)",
+                    }}
+                  >
+                    {option.label}
+                  </span>
+                </label>
+              );
+            })}
           </div>
         </div>
 
-        {/* Optional note */}
-        <div style={{ marginBottom: "2rem" }}>
-          <label
-            style={{
-              display: "block",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              color: "var(--text-muted)",
-              marginBottom: "0.5rem",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-            }}
-          >
-            Notes (optional)
-          </label>
+        <div className="mb-8">
+          <label className={labelClass}>Notes (optional)</label>
           <textarea
             value={userOptionalNote}
             onChange={(e) => setUserOptionalNote(e.target.value)}
             placeholder="Anything worth noting..."
             rows={3}
-            style={{
-              width: "100%",
-              padding: "0.75rem 1rem",
-              borderRadius: "0.875rem",
-              border: "1.5px solid rgba(124, 92, 62, 0.2)",
-              backgroundColor: "var(--cream)",
-              color: "var(--text-dark)",
-              fontSize: "0.9rem",
-              fontFamily: "DM Sans, sans-serif",
-              resize: "none",
-              outline: "none",
-              boxSizing: "border-box",
-            }}
+            className="w-full px-4 py-3 rounded-xl border-2 border-warm-brown/20 bg-cream text-text-dark text-sm font-dm-sans resize-none outline-none focus:border-warm-brown/50 transition-colors"
           />
         </div>
 
-        {/* Submit */}
         <button
           type="submit"
           disabled={!selectedEvent}
-          style={{
-            width: "100%",
-            padding: "0.875rem",
-            borderRadius: "0.875rem",
-            border: "none",
-            backgroundColor: selectedEvent
-              ? "var(--warm-brown)"
-              : "rgba(124, 92, 62, 0.3)",
-            color: "white",
-            fontSize: "0.95rem",
-            fontWeight: 600,
-            fontFamily: "DM Sans, sans-serif",
-            cursor: selectedEvent ? "pointer" : "not-allowed",
-            transition: "opacity 0.15s ease",
-          }}
+          className={`w-full py-3.5 rounded-xl text-base font-semibold transition-all duration-150 ${
+            selectedEvent
+              ? "bg-warm-brown text-white hover:opacity-90 active:scale-98"
+              : "bg-warm-brown/30 text-white cursor-not-allowed"
+          }`}
         >
           Save Event
         </button>
