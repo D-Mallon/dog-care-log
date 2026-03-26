@@ -104,19 +104,41 @@ function App() {
   function getTimeAgo(timestamp: string): string {
     const diffMs = Date.now() - new Date(timestamp).getTime();
     const totalMinutes = Math.floor(diffMs / (1000 * 60));
+    const totalHours = Math.floor(totalMinutes / 60);
+    const totalDays = Math.floor(totalHours / 24);
+    console.log("diffMs:", diffMs);
+    console.log("totalMinutes:", totalMinutes);
 
+    if (totalMinutes < 1) {
+      return "Just now";
+    }
     if (totalMinutes < 60) {
       return `${totalMinutes}m ago`;
     }
 
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-
-    if (minutes === 0) {
-      return `${hours}h ago`;
+    if (totalHours < 24) {
+      const remainingMinutes = totalMinutes % 60;
+      if (remainingMinutes === 0) {
+        return `${totalHours}h ago`;
+      } else {
+        return `${totalHours}h ${remainingMinutes}m ago`;
+      }
     }
 
-    return `${hours}h ${minutes}m ago`;
+    if (totalDays === 1) {
+      return "Yesterday";
+    }
+    if (totalDays < 7) {
+      return `${totalDays}d ago`;
+    }
+    if (totalDays < 30) {
+      const weeks = Math.floor(totalDays / 7);
+      return weeks === 1 ? "1 week ago" : `${weeks} weeks ago`;
+    }
+    return new Date(timestamp).toLocaleDateString([], {
+      day: "numeric",
+      month: "short",
+    });
   }
 
   if (!claims) return <AuthScreen />;
@@ -131,19 +153,21 @@ function App() {
     );
     return (
       <>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="mb-6 px-4 py-2 rounded-lg bg-warm-brown text-white font-bold"
-        >
-          Logout
-        </button>
-        <div className="mb-8">
-          <p className="text-xs font-medium tracking-widest uppercase text-text-muted mb-1">
-            your pack
-          </p>
-          <h1 className="text-4xl font-bold font-fraunces text-warm-brown">
-            Dog Care Log
-          </h1>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <p className="text-xs font-medium tracking-widest uppercase text-text-muted mb-1">
+              your pack
+            </p>
+            <h1 className="text-4xl font-bold font-fraunces text-warm-brown">
+              Dog Care Log
+            </h1>
+          </div>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="text-sm px-3 py-1.5 rounded-lg text-text-muted border border-warm-brown/20 bg-transparent hover:bg-light-tan transition-colors"
+          >
+            Log out
+          </button>
         </div>
 
         <button
