@@ -8,6 +8,7 @@ type DogStatusCardProps = {
   lastToiletHours: string;
   lastMedsHours: string;
   onLogEvent: () => void;
+  onViewProfile: () => void;
 };
 
 const EVENT_DISPLAY: Record<
@@ -40,16 +41,21 @@ export default function DogStatusCard(props: DogStatusCardProps) {
   return (
     <div className="w-full rounded-3xl p-5 shadow-sm bg-white border border-warm-brown/10">
       <div className="flex items-center gap-4 mb-5">
-        <img
-          src={props.dogImage}
-          alt={props.dogName}
-          className="w-14 h-14 rounded-2xl object-cover border-2 border-warm-brown/15"
-        />
-        <div>
-          <h3 className="text-xl font-bold font-fraunces leading-tight text-warm-brown">
-            {props.dogName}
-          </h3>
-          <p className="text-xs text-text-muted">all good today</p>
+        <div
+          onClick={props.onViewProfile}
+          className="flex items-center gap-4 cursor-pointer"
+        >
+          <img
+            src={props.dogImage}
+            alt={props.dogName}
+            className="w-14 h-14 rounded-2xl object-cover border-2 border-warm-brown/15"
+          />
+          <div>
+            <h3 className="text-xl font-bold font-fraunces leading-tight text-warm-brown">
+              {props.dogName}
+            </h3>
+            <p className="text-xs text-text-muted">all good today</p>
+          </div>
         </div>
       </div>
 

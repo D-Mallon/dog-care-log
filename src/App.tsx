@@ -10,8 +10,9 @@ import { useEffect, useState } from "react";
 import type { CareEvent, Dog, EventType } from "./types/core.ts";
 import { supabase } from "./lib/supabase.ts";
 import type { JwtPayload } from "@supabase/supabase-js";
+import DogProfileScreen from "./screens/DogProfileScreen.tsx";
 
-type Screen = "home" | "logEvent" | "addDog";
+type Screen = "home" | "logEvent" | "addDog" | "dogProfile";
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home");
@@ -141,6 +142,11 @@ function App() {
     });
   }
 
+  function handleViewProfile(dogId: string) {
+    setSelectedDogId(dogId);
+    changeScreen("dogProfile");
+  }
+
   if (!claims) return <AuthScreen />;
   else if (currentScreen === "home") {
     if (isLoading) {
@@ -215,6 +221,7 @@ function App() {
                       ? getTimeAgo(lastFedTimestamp)
                       : "Nothing recorded yet."
                   }
+                  onViewProfile={() => handleViewProfile(dog.dogId)}
                   lastWalkMinutes={
                     lastWalkTimestamp
                       ? getTimeAgo(lastWalkTimestamp)
@@ -298,6 +305,25 @@ function App() {
         <RegisterNewDogScreen
           userIdInDB={claims.sub}
           onSubmitDog={handleDataFromChildNewDog}
+        />
+      </>
+    );
+  } else if (currentScreen === "dogProfile") {
+    const selectedDog = dogs.find((dog) => dog.dogId === selectedDogId);
+    const selectedDogEvents = events.filter(
+      (event) => event.dogId === selectedDogId,
+    );
+    if (!selectedDog) {
+      return <div>Dog not found</div>;
+    }
+    return (
+      <>
+        <button onClick={() => changeScreen("home")}>Back</button>
+        <DogProfileScreen
+          dog={selectedDog}
+          events={selectedDogEvents}
+          onSave={getInitialDogs}
+          userIdInDB={claims.sub}
         />
       </>
     );
