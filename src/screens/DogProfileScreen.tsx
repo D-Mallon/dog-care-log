@@ -1,6 +1,7 @@
 import { supabase } from "../lib/supabase.ts";
 import type { Dog, CareEvent } from "../types/core.ts";
 import { useState } from "react";
+import getTimeAgo from "../lib/utils.ts";
 
 type DogProfileScreenProps = {
   dog: Dog;
@@ -18,26 +19,6 @@ const EVENT_COLOURS: Record<
   toilet: { bg: "bg-yellow-50", text: "text-yellow-800", emoji: "🌿" },
   meds: { bg: "bg-rose-50", text: "text-rose-800", emoji: "💊" },
 };
-
-function getTimeAgoShort(timestamp: string): string {
-  const diffMs = Date.now() - new Date(timestamp).getTime();
-  const totalMinutes = Math.floor(diffMs / (1000 * 60));
-  const totalHours = Math.floor(totalMinutes / 60);
-  const totalDays = Math.floor(totalHours / 24);
-
-  if (totalMinutes < 1) return "Just now";
-  if (totalMinutes < 60) return `${totalMinutes}m ago`;
-  if (totalHours < 24) {
-    const rem = totalMinutes % 60;
-    return rem === 0 ? `${totalHours}h ago` : `${totalHours}h ${rem}m ago`;
-  }
-  if (totalDays === 1) return "Yesterday";
-  if (totalDays < 7) return `${totalDays} days ago`;
-  return new Date(timestamp).toLocaleDateString([], {
-    day: "numeric",
-    month: "short",
-  });
-}
 
 export default function DogProfileScreen(props: DogProfileScreenProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -337,7 +318,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-text-muted">
-                      {getTimeAgoShort(event.timestamp)}
+                      {getTimeAgo(event.timestamp)}
                     </p>
                     {event.note && (
                       <p className="text-xs text-text-muted italic mt-0.5">
