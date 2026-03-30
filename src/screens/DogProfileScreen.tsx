@@ -7,6 +7,7 @@ type DogProfileScreenProps = {
   dog: Dog;
   events: CareEvent[];
   onSave: () => void;
+  householdId: string;
   userIdInDB: string;
 };
 
@@ -58,7 +59,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
     let imageUrl = props.dog.dogImage;
 
     if (newDogImageFile) {
-      const filePath = `${props.userIdInDB}/${crypto.randomUUID()}`;
+      const filePath = `${props.householdId}/${crypto.randomUUID()}`;
       const { error: uploadError } = await supabase.storage
         .from("dog-images")
         .upload(filePath, newDogImageFile);

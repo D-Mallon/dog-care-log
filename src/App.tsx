@@ -12,8 +12,10 @@ import { supabase } from "./lib/supabase.ts";
 import type { JwtPayload } from "@supabase/supabase-js";
 import DogProfileScreen from "./screens/DogProfileScreen.tsx";
 import getTimeAgo from "./lib/utils.ts";
+import HouseholdSetupScreen from "./screens/HouseholdSetupScreen.tsx";
+import type { Household } from "./types/core.ts";
 
-type Screen = "home" | "logEvent" | "addDog" | "dogProfile";
+type Screen = "home" | "logEvent" | "addDog" | "dogProfile" | "householdSetup";
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home");
@@ -23,6 +25,7 @@ function App() {
   const [claims, setClaims] = useState<JwtPayload | null>(null);
   // claims is the decoded JWT token which contains user info and is null if not authenticated. It is created when Supabase.auth.getClaims() is called, which is done on initial render and whenever the auth state changes.
   const [isLoading, setIsLoading] = useState(true);
+  const [household, setHousehold] = useState<Household | null>(null);
 
   useEffect(() => {
     // Check for existing session using getClaims
@@ -61,10 +64,16 @@ function App() {
 
   useEffect(() => {
     if (claims) {
+      getHousehold(claims.sub);
+    }
+  }, [claims]);
+
+  useEffect(() => {
+    if (claims && household) {
       getInitialDogs();
       getDogEvents();
     }
-  }, [claims]);
+  }, [claims, household]);
 
   function handleDataFromChildNewEvent(careEvent: CareEvent) {
     setEvents((prevEvents) => [...prevEvents, careEvent]);
@@ -108,8 +117,38 @@ function App() {
     changeScreen("dogProfile");
   }
 
+  async function getHousehold(userId: string) {
+    const { data, error } = await supabase
+      .from("HouseholdMember")
+      .select("householdId")
+      .eq("userId", userId)
+      .eq("status", "active")
+      .single();
+
+    if (error || !data) {
+      setHousehold(null);
+      return;
+    }
+
+    const { data: householdData } = await supabase
+      .from("Household")
+      .select()
+      .eq("id", data.householdId)
+      .single();
+
+    setHousehold(householdData ?? null);
+  }
+
   if (!claims) return <AuthScreen />;
-  else if (currentScreen === "home") {
+
+  if (!household)
+    return (
+      <HouseholdSetupScreen
+        userIdInDB={claims.sub}
+        onHouseholdReady={(h) => setHousehold(h)}
+      />
+    );
+  if (currentScreen === "home") {
     if (isLoading) {
       return <p style={{ color: "var(--text-muted)" }}>Loading your pack...</p>;
     }
@@ -137,12 +176,23 @@ function App() {
           </button>
         </div>
 
-        <button
-          className="mb-6 px-4 py-2 rounded-lg bg-warm-brown text-white font-bold hover:opacity-90 transition-opacity"
-          onClick={() => changeScreen("addDog")}
-        >
-          + Add a Dog
-        </button>
+        <div className="flex justify-between items-center mb-6">
+          <button
+            className="px-4 py-2 rounded-lg bg-warm-brown text-white text-sm font-bold hover:opacity-90 transition-opacity"
+            onClick={() => changeScreen("addDog")}
+          >
+            + Add a Dog
+          </button>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(household.inviteCode);
+              alert(`Invite code copied: ${household.inviteCode}`);
+            }}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
+          >
+            Share 🐾
+          </button>
+        </div>
 
         <div className="flex flex-col gap-4 mb-10">
           {dogs.length === 0 ? (
@@ -261,7 +311,7 @@ function App() {
           Home
         </button>
         <RegisterNewDogScreen
-          userIdInDB={claims.sub}
+          householdId={household?.id ?? ""}
           onSubmitDog={handleDataFromChildNewDog}
         />
       </>
@@ -281,6 +331,7 @@ function App() {
           dog={selectedDog}
           events={selectedDogEvents}
           onSave={getInitialDogs}
+          householdId={household?.id ?? ""}
           userIdInDB={claims.sub}
         />
       </>

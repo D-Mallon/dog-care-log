@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase.ts";
 
 type AddDogScreenProps = {
   onSubmitDog: (newDog: Dog) => void;
-  userIdInDB: string;
+  householdId: string;
 };
 
 const inputClass =
@@ -42,7 +42,7 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
     let newDogImageUrl = "";
 
     if (newDogImageFile) {
-      const filePath = `${props.userIdInDB}/${crypto.randomUUID()}`;
+      const filePath = `${props.householdId}/${crypto.randomUUID()}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("dog-images")
@@ -67,13 +67,13 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
       dogId: crypto.randomUUID(),
       dogName: newDogName,
       dogImage: newDogImageUrl,
-      userId: props.userIdInDB,
       age: newDogAge ?? undefined,
       weight: newDogWeight ?? undefined,
+      householdId: props.householdId,
     };
 
     const { error } = await supabase.from("Dogs").insert({
-      userId: props.userIdInDB,
+      householdId: props.householdId,
       dogId: newDog.dogId,
       dogName: newDog.dogName,
       dogImage: newDogImageUrl,
