@@ -13,7 +13,7 @@ export default function AuthScreen() {
           welcome to
         </p>
         <h1 className="text-4xl font-bold font-fraunces text-warm-brown m-0">
-          Dog Care Log
+          Loggi
         </h1>
         <p className="text-sm text-text-muted mt-2">
           Keep your pack happy and healthy

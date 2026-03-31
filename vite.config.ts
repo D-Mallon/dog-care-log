@@ -9,8 +9,8 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       manifest: {
-        name: "Dog Care Log",
-        short_name: "Dog Care",
+        name: "Loggi",
+        short_name: "Loggi",
         description: "Track care events for your dogs",
         theme_color: "#7c5c3e",
         background_color: "#fdf6ee",

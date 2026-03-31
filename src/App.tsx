@@ -24,9 +24,13 @@ function App() {
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
   const [claims, setClaims] = useState<JwtPayload | null>(null);
   // claims is the decoded JWT token which contains user info and is null if not authenticated. It is created when Supabase.auth.getClaims() is called, which is done on initial render and whenever the auth state changes.
-  const [isLoading, setIsLoading] = useState(true);
   const [household, setHousehold] = useState<Household | null>(null);
   const [copied, setCopied] = useState(false);
+  const [dogsLoading, setDogsLoading] = useState(true);
+  const [eventsLoading, setEventsLoading] = useState(true);
+
+  // derive combined loading state
+  const isLoading = dogsLoading || eventsLoading;
 
   useEffect(() => {
     // Check for existing session using getClaims
@@ -49,18 +53,15 @@ function App() {
   }
 
   async function getInitialDogs() {
-    const { data, error } = await supabase.from("Dogs").select();
-    console.log("data:", data);
-    console.log("error:", error);
+    const { data } = await supabase.from("Dogs").select();
     setDogs(data ?? []);
-    setIsLoading(false);
+    setDogsLoading(false);
   }
 
   async function getDogEvents() {
-    const { data, error } = await supabase.from("DogEvent").select();
-    console.log("data:", data);
-    console.log("error:", error);
+    const { data } = await supabase.from("DogEvent").select();
     setEvents(data ?? []);
+    setEventsLoading(false);
   }
 
   useEffect(() => {
@@ -187,39 +188,42 @@ function App() {
     );
     return (
       <>
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <p className="text-xs font-medium tracking-widest uppercase text-text-muted mb-1">
-              your pack
-            </p>
-            <h1 className="text-4xl font-bold font-fraunces text-warm-brown">
-              Dog Care Log
-            </h1>
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <p className="text-xs font-medium tracking-widest uppercase text-text-muted mb-1">
+                your pack
+              </p>
+              <h1 className="text-4xl font-bold font-fraunces text-warm-brown">
+                Loggi
+              </h1>
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <button
+                onClick={() => supabase.auth.signOut()}
+                className="text-sm px-3 py-1.5 rounded-lg text-text-muted border border-warm-brown/20 bg-transparent hover:bg-light-tan transition-colors"
+              >
+                Log out
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(household.inviteCode);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="text-sm px-3 py-1.5 rounded-lg text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
+              >
+                {copied ? "Copied! ✓" : "Share 🐾"}
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="text-sm px-3 py-1.5 rounded-lg text-text-muted border border-warm-brown/20 bg-transparent hover:bg-light-tan transition-colors"
-          >
-            Log out
-          </button>
-        </div>
 
-        <div className="flex justify-between items-center mb-6">
           <button
-            className="px-4 py-2 rounded-lg bg-warm-brown text-white text-sm font-bold hover:opacity-90 transition-opacity"
+            className="w-full py-3 rounded-xl bg-warm-brown text-white text-sm font-bold hover:opacity-90 transition-opacity"
             onClick={() => changeScreen("addDog")}
           >
             + Add a Dog
-          </button>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(household.inviteCode);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-            }}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
-          >
-            {copied ? "Copied! ✓" : "Share 🐾"}
           </button>
         </div>
 
@@ -361,7 +365,12 @@ function App() {
     }
     return (
       <>
-        <button onClick={() => changeScreen("home")}>Back</button>
+        <button
+          onClick={() => changeScreen("home")}
+          className="flex items-center gap-1.5 text-sm font-medium text-warm-brown mb-6 hover:opacity-70 transition-opacity"
+        >
+          ← Back
+        </button>{" "}
         <DogProfileScreen
           dog={selectedDog}
           events={selectedDogEvents}
