@@ -7,6 +7,8 @@ type DogProfileScreenProps = {
   dog: Dog;
   events: CareEvent[];
   onSave: () => void;
+  onDeleteEvent: (eventId: string) => void;
+  onDeleteDog: (dogId: string) => void;
   householdId: string;
   userIdInDB: string;
 };
@@ -32,6 +34,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [visibleEvents, setVisibleEvents] = useState(10);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const sortedEvents = [...props.events].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
@@ -50,6 +53,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
     setEditedWeight(props.dog.weight ?? "");
     setPreviewUrl(null);
     setNewDogImageFile(null);
+    setConfirmingDelete(false);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -268,7 +272,8 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
             </div>
 
             {/* Buttons */}
-            <div className="flex gap-3">
+            {/* Buttons */}
+            <div className="flex gap-3 mb-4">
               <button
                 type="button"
                 onClick={handleCancelEdit}
@@ -283,6 +288,45 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
               >
                 {isSubmitting ? "Saving..." : "Save changes"}
               </button>
+            </div>
+
+            {/* Delete dog — separate row below save/cancel */}
+            <div className="pt-4 border-t border-warm-brown/10">
+              {!confirmingDelete ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                  className="w-full py-2.5 rounded-xl text-sm font-medium text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                >
+                  Remove {props.dog.dogName} from your pack
+                </button>
+              ) : (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 p-4">
+                  <p className="text-sm font-semibold text-rose-700 text-center mb-1">
+                    Are you sure?
+                  </p>
+                  <p className="text-xs text-rose-500 text-center mb-4">
+                    This will permanently delete {props.dog.dogName} and all
+                    their events.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingDelete(false)}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => props.onDeleteDog(props.dog.dogId)}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-rose-500 hover:bg-rose-600 transition-colors"
+                    >
+                      Yes, remove
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </form>
         )}
@@ -327,6 +371,12 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
                       </p>
                     )}
                   </div>
+                  <button
+                    onClick={() => props.onDeleteEvent(event.id)}
+                    className="text-xs text-rose-400 hover:text-rose-600 transition-colors ml-2 flex-shrink-0"
+                  >
+                    ✕
+                  </button>
                 </li>
               );
             })}

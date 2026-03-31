@@ -26,6 +26,7 @@ function App() {
   // claims is the decoded JWT token which contains user info and is null if not authenticated. It is created when Supabase.auth.getClaims() is called, which is done on initial render and whenever the auth state changes.
   const [isLoading, setIsLoading] = useState(true);
   const [household, setHousehold] = useState<Household | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     // Check for existing session using getClaims
@@ -139,6 +140,33 @@ function App() {
     setHousehold(householdData ?? null);
   }
 
+  async function handleDeleteEvent(eventId: string) {
+    const { error } = await supabase
+      .from("DogEvent")
+      .delete()
+      .eq("id", eventId);
+    if (error) {
+      console.error("Error deleting event:", error);
+      return;
+    }
+    setEvents((prevEvents) =>
+      prevEvents.filter((event) => event.id !== eventId),
+    );
+  }
+
+  async function handleDeleteDog(dogId: string) {
+    const { error } = await supabase.from("Dogs").delete().eq("dogId", dogId);
+    if (error) {
+      console.error("Error deleting dog:", error);
+      return;
+    }
+    setDogs((prevDogs) => prevDogs.filter((dog) => dog.dogId !== dogId));
+    setEvents((prevEvents) =>
+      prevEvents.filter((event) => event.dogId !== dogId),
+    );
+    setCurrentScreen("home");
+  }
+
   if (!claims) return <AuthScreen />;
 
   if (!household)
@@ -186,11 +214,12 @@ function App() {
           <button
             onClick={() => {
               navigator.clipboard.writeText(household.inviteCode);
-              alert(`Invite code copied: ${household.inviteCode}`);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
             }}
             className="px-4 py-2 rounded-lg text-sm font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
           >
-            Share 🐾
+            {copied ? "Copied! ✓" : "Share 🐾"}
           </button>
         </div>
 
@@ -278,6 +307,12 @@ function App() {
                   <span className="text-xs text-text-muted">
                     {getTimeAgo(event.timestamp)}
                   </span>
+                  <button
+                    onClick={() => handleDeleteEvent(event.id)}
+                    className="text-xs text-rose-400 hover:text-rose-600 transition-colors ml-2 flex-shrink-0"
+                  >
+                    ✕
+                  </button>
                 </li>
               ))}
             </ul>
@@ -333,6 +368,8 @@ function App() {
           onSave={getInitialDogs}
           householdId={household?.id ?? ""}
           userIdInDB={claims.sub}
+          onDeleteEvent={handleDeleteEvent}
+          onDeleteDog={handleDeleteDog}
         />
       </>
     );
