@@ -186,6 +186,13 @@ function App() {
       (a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     );
+
+    const todaysEvents = sortedEvents.filter((event) => {
+      const eventDate = new Date(event.timestamp).toDateString();
+      const todayDate = new Date().toDateString();
+      return eventDate === todayDate;
+    });
+
     return (
       <>
         {/* Header */}
@@ -291,13 +298,13 @@ function App() {
           )}
         </div>
 
-        {events.length > 0 && (
+        {todaysEvents.length > 0 ? (
           <div className="rounded-2xl p-5 bg-light-tan">
             <h2 className="text-lg font-semibold mb-4 text-warm-brown">
-              Recent Events
+              Today's Events
             </h2>
             <ul className="flex flex-col gap-3">
-              {sortedEvents.map((event) => (
+              {todaysEvents.map((event) => (
                 <li
                   key={event.id}
                   className="flex justify-between items-center text-sm py-2 border-b border-warm-brown/15 text-text-dark last:border-b-0"
@@ -321,6 +328,10 @@ function App() {
               ))}
             </ul>
           </div>
+        ) : (
+          <p className="text-sm text-text-muted text-center py-2">
+            No events logged today yet. Tap a dog card to log one.
+          </p>
         )}
       </>
     );
