@@ -7,6 +7,7 @@ type DogStatusCardProps = {
   lastWalkMinutes: string;
   lastToiletHours: string;
   lastMedsHours: string;
+  numOfEventsToday: number;
   onLogEvent: () => void;
   onViewProfile: () => void;
 };
@@ -54,7 +55,9 @@ export default function DogStatusCard(props: DogStatusCardProps) {
             <h3 className="text-xl font-bold font-fraunces leading-tight text-warm-brown">
               {props.dogName}
             </h3>
-            <p className="text-xs text-text-muted">all good today</p>
+            <p className="text-xs text-text-muted">
+              {props.numOfEventsToday} events logged today
+            </p>
           </div>
         </div>
       </div>

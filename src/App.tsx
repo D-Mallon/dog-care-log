@@ -193,6 +193,10 @@ function App() {
       return eventDate === todayDate;
     });
 
+    const getNumberOfEventsForDog = (dogId: string, events: CareEvent[]) => {
+      return events.filter((event) => event.dogId === dogId).length;
+    };
+
     return (
       <>
         {/* Header */}
@@ -272,6 +276,10 @@ function App() {
                       ? getTimeAgo(lastFedTimestamp)
                       : "Nothing recorded yet."
                   }
+                  numOfEventsToday={getNumberOfEventsForDog(
+                    dog.dogId,
+                    todaysEvents,
+                  )}
                   onViewProfile={() => handleViewProfile(dog.dogId)}
                   lastWalkMinutes={
                     lastWalkTimestamp
@@ -319,7 +327,11 @@ function App() {
                     {getTimeAgo(event.timestamp)}
                   </span>
                   <button
-                    onClick={() => handleDeleteEvent(event.id)}
+                    onClick={() => {
+                      if (window.confirm("Delete this event?")) {
+                        handleDeleteEvent(event.id);
+                      }
+                    }}
                     className="text-xs text-rose-400 hover:text-rose-600 transition-colors ml-2 flex-shrink-0"
                   >
                     ✕
