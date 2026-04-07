@@ -26,6 +26,13 @@ export interface Dog {
   dogImage: string;
 }
 
+export interface WeightLog {
+  id: string;
+  dogId: string;
+  weight: number;
+  recordedAt: string;
+}
+
 export interface CareEvent {
   id: string;
   dogId: string;

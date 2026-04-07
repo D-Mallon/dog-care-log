@@ -7,7 +7,7 @@ import LogEventScreen from "./screens/LogEventScreen.tsx";
 import RegisterNewDogScreen from "./screens/RegisterNewDogScreen.tsx";
 import AuthScreen from "./screens/AuthScreen.tsx";
 import { useEffect, useState } from "react";
-import type { CareEvent, Dog, EventType } from "./types/core.ts";
+import type { CareEvent, Dog, EventType, WeightLog } from "./types/core.ts";
 import { supabase } from "./lib/supabase.ts";
 import type { JwtPayload } from "@supabase/supabase-js";
 import DogProfileScreen from "./screens/DogProfileScreen.tsx";
@@ -28,6 +28,7 @@ function App() {
   const [copied, setCopied] = useState(false);
   const [dogsLoading, setDogsLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(true);
+  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
 
   // derive combined loading state
   const isLoading = dogsLoading || eventsLoading;
@@ -74,6 +75,7 @@ function App() {
     if (claims && household) {
       getInitialDogs();
       getDogEvents();
+      getWeightLogs();
     }
   }, [claims, household]);
 
@@ -139,6 +141,11 @@ function App() {
       .single();
 
     setHousehold(householdData ?? null);
+  }
+
+  async function getWeightLogs() {
+    const { data } = await supabase.from("WeightLog").select();
+    setWeightLogs(data ?? []);
   }
 
   async function handleDeleteEvent(eventId: string) {
@@ -397,11 +404,13 @@ function App() {
         <DogProfileScreen
           dog={selectedDog}
           events={selectedDogEvents}
+          weightLogs={weightLogs.filter((w) => w.dogId === selectedDogId)}
           onSave={getInitialDogs}
           householdId={household?.id ?? ""}
           userIdInDB={claims.sub}
           onDeleteEvent={handleDeleteEvent}
           onDeleteDog={handleDeleteDog}
+          onWeightLogged={getWeightLogs}
         />
       </>
     );

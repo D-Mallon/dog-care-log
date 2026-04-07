@@ -1,16 +1,18 @@
 import { supabase } from "../lib/supabase.ts";
-import type { Dog, CareEvent } from "../types/core.ts";
+import type { Dog, CareEvent, WeightLog } from "../types/core.ts";
 import { useState } from "react";
 import getTimeAgo from "../lib/utils.ts";
 
 type DogProfileScreenProps = {
   dog: Dog;
   events: CareEvent[];
+  weightLogs: WeightLog[];
   onSave: () => void;
   onDeleteEvent: (eventId: string) => void;
   onDeleteDog: (dogId: string) => void;
   householdId: string;
   userIdInDB: string;
+  onWeightLogged: () => void;
 };
 
 const EVENT_COLOURS: Record<
@@ -30,8 +32,10 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
   const [editedWeight, setEditedWeight] = useState<number | "">(
     props.dog.weight ?? "",
   );
+
   const [newDogImageFile, setNewDogImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [visibleEvents, setVisibleEvents] = useState(10);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -39,6 +43,14 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
   const sortedEvents = [...props.events].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
   );
+
+  const sortedWeights = [...props.weightLogs].sort(
+    (a, b) =>
+      new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime(),
+  );
+
+  const latestWeight =
+    editedWeight !== "" ? editedWeight : sortedWeights[0]?.weight;
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -56,20 +68,20 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
     setConfirmingDelete(false);
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setIsSubmitting(true);
 
     let imageUrl = props.dog.dogImage;
 
     if (newDogImageFile) {
       const filePath = `${props.householdId}/${crypto.randomUUID()}`;
-      const { error: uploadError } = await supabase.storage
+      const { error } = await supabase.storage
         .from("dog-images")
         .upload(filePath, newDogImageFile);
 
-      if (uploadError) {
-        console.error("Upload error:", uploadError);
+      if (error) {
+        console.error(error);
         setIsSubmitting(false);
         return;
       }
@@ -77,9 +89,11 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
       const { data } = supabase.storage
         .from("dog-images")
         .getPublicUrl(filePath);
+
       imageUrl = data.publicUrl;
     }
 
+    // ✅ Update dog profile
     const { error } = await supabase
       .from("Dogs")
       .update({
@@ -91,77 +105,74 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
       .eq("dogId", props.dog.dogId);
 
     if (error) {
-      console.error("Update error:", error);
+      console.error(error);
       setIsSubmitting(false);
       return;
     }
 
+    // ✅ Log weight IF it changed
+    if (editedWeight !== "" && editedWeight !== props.dog.weight) {
+      await supabase.from("WeightLog").insert({
+        id: crypto.randomUUID(),
+        dogId: props.dog.dogId,
+        weight: editedWeight,
+        recordedAt: new Date().toISOString(),
+      });
+
+      props.onWeightLogged();
+    }
+
     setIsSubmitting(false);
     setIsEditing(false);
-    setNewDogImageFile(null);
-    setPreviewUrl(null);
     props.onSave();
   }
 
-  const displayImage = previewUrl ?? (props.dog.dogImage || null);
+  const displayImage = previewUrl ?? props.dog.dogImage;
 
   return (
-    <div style={{ paddingTop: "1rem" }}>
-      {/* Profile card */}
-      <div className="w-full rounded-3xl p-6 shadow-sm bg-white border border-warm-brown/10 mb-6">
+    <div className="pt-4">
+      {/* Profile Card */}
+      <div className="w-full rounded-3xl p-6 bg-white border border-warm-brown/10 mb-6">
         {!isEditing ? (
-          /* ── VIEW MODE ── */
-          <div>
-            <div className="flex items-start gap-5 mb-5">
-              {/* Dog image */}
-              <div className="flex-shrink-0">
+          <>
+            <div className="flex gap-5 mb-5">
+              {/* Image */}
+              <div>
                 {displayImage ? (
                   <img
                     src={displayImage}
-                    alt={props.dog.dogName}
                     className="w-24 h-24 rounded-2xl object-cover"
-                    style={{ border: "2px solid rgba(124, 92, 62, 0.15)" }}
                   />
                 ) : (
-                  <div
-                    className="w-24 h-24 rounded-2xl bg-light-tan flex items-center justify-center text-4xl"
-                    style={{ border: "2px solid rgba(124, 92, 62, 0.15)" }}
-                  >
+                  <div className="w-24 h-24 rounded-2xl bg-light-tan flex items-center justify-center text-4xl">
                     🐾
                   </div>
                 )}
               </div>
 
-              {/* Dog details */}
+              {/* Info */}
               <div className="flex-1">
-                <h2 className="text-2xl font-bold font-fraunces text-warm-brown mb-3">
+                <h2 className="text-2xl font-bold text-warm-brown mb-3">
                   {props.dog.dogName}
                 </h2>
-                <div className="flex gap-4">
+
+                <div className="flex gap-3">
                   {props.dog.age != null && (
-                    <div className="rounded-xl px-3 py-2 bg-amber-50">
-                      <p className="text-xs text-amber-600 font-medium uppercase tracking-wide">
-                        Age
-                      </p>
+                    <div className="px-3 py-2 rounded-xl bg-amber-50">
+                      <p className="text-xs uppercase text-amber-600">Age</p>
                       <p className="text-sm font-semibold text-amber-800">
                         {props.dog.age} yrs
                       </p>
                     </div>
                   )}
-                  {props.dog.weight != null && (
-                    <div className="rounded-xl px-3 py-2 bg-green-50">
-                      <p className="text-xs text-green-600 font-medium uppercase tracking-wide">
-                        Weight
-                      </p>
+
+                  {latestWeight != null && latestWeight !== "" && (
+                    <div className="px-3 py-2 rounded-xl bg-green-50">
+                      <p className="text-xs uppercase text-green-600">Weight</p>
                       <p className="text-sm font-semibold text-green-800">
-                        {props.dog.weight} kg
+                        {latestWeight} kg
                       </p>
                     </div>
-                  )}
-                  {props.dog.age == null && props.dog.weight == null && (
-                    <p className="text-sm text-text-muted">
-                      No details added yet
-                    </p>
                   )}
                 </div>
               </div>
@@ -169,136 +180,91 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
 
             <button
               onClick={() => setIsEditing(true)}
-              className="w-full py-2.5 rounded-xl text-sm font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
+              className="w-full py-2.5 rounded-xl text-sm font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan"
             >
               Edit profile
             </button>
-          </div>
+          </>
         ) : (
-          /* ── EDIT MODE ── */
           <form onSubmit={handleSubmit}>
-            {/* Image upload */}
-            <div className="flex justify-center mb-6">
-              <label className="cursor-pointer group">
-                <div className="relative">
-                  {displayImage ? (
-                    <img
-                      src={displayImage}
-                      alt={props.dog.dogName}
-                      className="w-28 h-28 rounded-2xl object-cover"
-                      style={{ border: "2px solid rgba(124, 92, 62, 0.15)" }}
-                    />
-                  ) : (
-                    <div
-                      className="w-28 h-28 rounded-2xl bg-light-tan flex items-center justify-center text-4xl"
-                      style={{ border: "2px dashed rgba(124, 92, 62, 0.3)" }}
-                    >
-                      🐾
-                    </div>
-                  )}
-                  {/* Overlay hint */}
-                  <div className="absolute inset-0 rounded-2xl bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-white text-xs font-medium">
-                      Change
-                    </span>
-                  </div>
-                </div>
-                <p className="text-xs text-text-muted text-center mt-2">
-                  Tap to change photo
-                </p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  style={{ display: "none" }}
-                />
-              </label>
-            </div>
+            {/* Title */}
+            <h2 className="text-lg font-semibold text-warm-brown mb-4">
+              Edit profile
+            </h2>
 
-            {/* Name input */}
+            {/* Name */}
             <div className="mb-4">
-              <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">
                 Name
               </label>
               <input
-                type="text"
                 value={editedName}
                 onChange={(e) => setEditedName(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-warm-brown/20 bg-cream text-text-dark font-medium focus:outline-none focus:border-warm-brown"
-                style={{ fontFamily: "DM Sans, sans-serif" }}
+                className="w-full px-4 py-3 rounded-xl border border-warm-brown/20 bg-cream"
               />
             </div>
 
-            {/* Age and weight */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            {/* Age + Weight */}
+            <div className="grid grid-cols-2 gap-3 mb-5">
               <div>
-                <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
-                  Age (years)
+                <label className="block text-xs font-semibold text-text-muted uppercase mb-1">
+                  Age
                 </label>
                 <input
                   type="number"
-                  min="0"
-                  max="30"
                   value={editedAge}
                   onChange={(e) =>
                     setEditedAge(
                       e.target.value === "" ? "" : Number(e.target.value),
                     )
                   }
-                  placeholder="e.g. 3"
-                  className="w-full px-4 py-3 rounded-xl border border-warm-brown/20 bg-cream text-text-dark focus:outline-none focus:border-warm-brown"
-                  style={{ fontFamily: "DM Sans, sans-serif" }}
+                  className="w-full px-4 py-3 rounded-xl border border-warm-brown/20 bg-cream"
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-text-muted uppercase mb-1">
                   Weight (kg)
                 </label>
                 <input
                   type="number"
-                  min="0"
-                  max="200"
                   value={editedWeight}
                   onChange={(e) =>
                     setEditedWeight(
                       e.target.value === "" ? "" : Number(e.target.value),
                     )
                   }
-                  placeholder="e.g. 28"
-                  className="w-full px-4 py-3 rounded-xl border border-warm-brown/20 bg-cream text-text-dark focus:outline-none focus:border-warm-brown"
-                  style={{ fontFamily: "DM Sans, sans-serif" }}
+                  className="w-full px-4 py-3 rounded-xl border border-warm-brown/20 bg-cream"
                 />
               </div>
             </div>
 
             {/* Buttons */}
-            {/* Buttons */}
-            <div className="flex gap-3 mb-4">
+            <div className="flex gap-3 mb-6">
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
+                className="flex-1 py-3 rounded-xl text-sm font-semibold border border-warm-brown/20 text-warm-brown hover:bg-light-tan"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold text-white bg-warm-brown hover:opacity-90 transition-opacity disabled:opacity-40"
+                className="flex-1 py-3 rounded-xl text-sm font-semibold bg-warm-brown text-white hover:opacity-90"
               >
-                {isSubmitting ? "Saving..." : "Save changes"}
+                {isSubmitting ? "Saving..." : "Save"}
               </button>
             </div>
 
-            {/* Delete dog — separate row below save/cancel */}
+            {/* Danger Zone */}
             <div className="pt-4 border-t border-warm-brown/10">
               {!confirmingDelete ? (
                 <button
                   type="button"
                   onClick={() => setConfirmingDelete(true)}
-                  className="w-full py-2.5 rounded-xl text-sm font-medium text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                  className="w-full py-2.5 rounded-xl text-sm font-medium text-rose-500 hover:bg-rose-50"
                 >
-                  Remove {props.dog.dogName} from your pack
+                  Remove {props.dog.dogName}
                 </button>
               ) : (
                 <div className="rounded-xl bg-rose-50 border border-rose-200 p-4">
@@ -306,21 +272,21 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
                     Are you sure?
                   </p>
                   <p className="text-xs text-rose-500 text-center mb-4">
-                    This will permanently delete {props.dog.dogName} and all
-                    their events.
+                    This will permanently delete {props.dog.dogName}.
                   </p>
+
                   <div className="flex gap-3">
                     <button
                       type="button"
                       onClick={() => setConfirmingDelete(false)}
-                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
+                      className="flex-1 py-2.5 rounded-xl border border-warm-brown/20 text-warm-brown"
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
                       onClick={() => props.onDeleteDog(props.dog.dogId)}
-                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-rose-500 hover:bg-rose-600 transition-colors"
+                      className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white hover:bg-rose-600"
                     >
                       Yes, remove
                     </button>
@@ -332,72 +298,49 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
         )}
       </div>
 
-      {/* Event history */}
-      {sortedEvents.length > 0 && (
-        <div
-          className="rounded-2xl p-5"
-          style={{ backgroundColor: "var(--light-tan)" }}
-        >
-          <h2 className="text-lg font-semibold font-fraunces text-warm-brown mb-4">
-            Event history
-          </h2>
-          <ul className="flex flex-col gap-2">
-            {sortedEvents.slice(0, visibleEvents).map((event) => {
-              const colours = EVENT_COLOURS[event.type] ?? {
-                bg: "bg-gray-50",
-                text: "text-gray-800",
-                emoji: "📋",
-              };
-              return (
-                <li
-                  key={event.id}
-                  className={`flex items-center justify-between px-4 py-3 rounded-xl ${colours.bg}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">{colours.emoji}</span>
-                    <span
-                      className={`text-sm font-semibold capitalize ${colours.text}`}
-                    >
-                      {event.type}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-text-muted">
-                      {getTimeAgo(event.timestamp)}
-                    </p>
-                    {event.note && (
-                      <p className="text-xs text-text-muted italic mt-0.5">
-                        "{event.note}"
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => props.onDeleteEvent(event.id)}
-                    className="text-xs text-rose-400 hover:text-rose-600 transition-colors ml-2 flex-shrink-0"
-                  >
-                    ✕
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-
-          {sortedEvents.length > visibleEvents && (
-            <button
-              onClick={() => setVisibleEvents((v) => v + 10)}
-              className="w-full mt-4 py-2.5 rounded-xl text-sm font-medium text-warm-brown border border-warm-brown/20 bg-white/60 hover:bg-white transition-colors"
-            >
-              Load more ({sortedEvents.length - visibleEvents} remaining)
-            </button>
-          )}
+      {/* Weight history */}
+      {sortedWeights.length > 0 && (
+        <div className="mb-6 p-4 rounded-2xl bg-light-tan">
+          <h2 className="mb-3 font-semibold">Weight history ⚖️</h2>
+          {sortedWeights.map((w) => (
+            <div key={w.id} className="flex justify-between text-sm">
+              <span>{w.weight} kg</span>
+              <span>{getTimeAgo(w.recordedAt)}</span>
+            </div>
+          ))}
         </div>
       )}
 
-      {sortedEvents.length === 0 && (
-        <p className="text-sm text-text-muted text-center py-4">
-          No events logged yet for {props.dog.dogName}.
-        </p>
-      )}
+      {/* Events */}
+      <div className="p-4 rounded-2xl bg-light-tan">
+        <h2 className="mb-3 font-semibold">Event history 🐾</h2>
+
+        {sortedEvents.slice(0, visibleEvents).map((event) => {
+          const c = EVENT_COLOURS[event.type] ?? {
+            bg: "bg-gray-50",
+            text: "text-gray-800",
+            emoji: "📋",
+          };
+
+          return (
+            <div
+              key={event.id}
+              className={`flex justify-between p-3 rounded-xl ${c.bg}`}
+            >
+              <span>
+                {c.emoji} {event.type}
+              </span>
+              <span>{getTimeAgo(event.timestamp)}</span>
+            </div>
+          );
+        })}
+
+        {sortedEvents.length > visibleEvents && (
+          <button onClick={() => setVisibleEvents((v) => v + 10)}>
+            Load more
+          </button>
+        )}
+      </div>
     </div>
   );
 }
