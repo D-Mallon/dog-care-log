@@ -15,7 +15,6 @@ type DogProfileScreenProps = {
   userIdInDB: string;
   onWeightLogged: () => void;
 };
-
 const EVENT_COLOURS: Record<
   string,
   { bg: string; text: string; emoji: string }
@@ -115,11 +114,14 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
     }
 
     // ✅ Log weight IF it changed
-    if (editedWeight !== "" && Number(editedWeight) !== props.dog.weight) {
+    const currentWeight = props.dog.weight ?? null;
+    const newWeight = editedWeight === "" ? null : Number(editedWeight);
+
+    if (newWeight !== currentWeight) {
       await supabase.from("WeightLog").insert({
         id: crypto.randomUUID(),
         dogId: props.dog.dogId,
-        weight: editedWeight,
+        weight: editedWeight, // Keep editedWeight as is, it will be Number or "" so supabase should handle it
         recordedAt: new Date().toISOString(),
       });
 
