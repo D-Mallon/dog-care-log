@@ -172,7 +172,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
                     </div>
                   )}
 
-                  {latestWeight != null && latestWeight !== "" && (
+                  {latestWeight != null && latestWeight !== null && (
                     <div className="px-3 py-2 rounded-xl bg-green-50">
                       <p className="text-xs uppercase text-green-600">Weight</p>
                       <p className="text-sm font-semibold text-green-800">
