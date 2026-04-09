@@ -115,7 +115,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
     }
 
     // ✅ Log weight IF it changed
-    if (editedWeight !== "" && editedWeight !== props.dog.weight) {
+    if (editedWeight !== "" && Number(editedWeight) !== props.dog.weight) {
       await supabase.from("WeightLog").insert({
         id: crypto.randomUUID(),
         dogId: props.dog.dogId,

@@ -85,7 +85,7 @@ function App() {
     setCurrentScreen("home");
   }
 
-  function handleDataFromChildNewDog(newDog: Dog) {
+  function handleDataFromChildNewDog() {
     getInitialDogs();
     setCurrentScreen("home");
   }

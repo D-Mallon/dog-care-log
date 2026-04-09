@@ -44,12 +44,12 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
     if (newDogImageFile) {
       const filePath = `${props.householdId}/${crypto.randomUUID()}`;
 
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error } = await supabase.storage
         .from("dog-images")
         .upload(filePath, newDogImageFile);
 
-      if (uploadError) {
-        console.error("Error uploading image:", uploadError);
+      if (error) {
+        console.error("Error uploading image:", error);
         setIsSubmitting(false);
         return;
       }
