@@ -208,6 +208,26 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
               />
             </div>
 
+            {/* Image Upload */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">
+                Dog Image
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="w-full text-sm text-text-dark file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-warm-brown file:text-white hover:file:bg-warm-brown/90"
+              />
+              {previewUrl && (
+                <img
+                  src={previewUrl}
+                  alt="Image Preview"
+                  className="mt-2 w-24 h-24 object-cover rounded-xl"
+                />
+              )}
+            </div>
+
             {/* Age + Weight */}
             <div className="grid grid-cols-2 gap-3 mb-5">
               <div>
