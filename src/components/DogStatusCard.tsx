@@ -10,6 +10,7 @@ type DogStatusCardProps = {
   numOfEventsToday: number;
   onLogEvent: () => void;
   onViewProfile: () => void;
+  onQuickLog?: (eventType: EventType) => void;
 };
 
 export const EVENT_DISPLAY: Record<
@@ -107,6 +108,50 @@ export default function DogStatusCard(props: DogStatusCardProps) {
           <span className="text-xs text-rose-600">{props.lastMedsHours}</span>
         </li>
       </ul>
+      {props.onQuickLog && (
+        <div className="grid grid-cols-4 gap-2 mb-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onQuickLog?.("feed");
+            }}
+            className="py-2 rounded-lg bg-amber-50 hover:bg-amber-100 active:scale-95 transition-all"
+            title="Quick log: Fed"
+          >
+            <span className="text-xl">🍖</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onQuickLog?.("walk");
+            }}
+            className="py-2 rounded-lg bg-green-50 hover:bg-green-100 active:scale-95 transition-all"
+            title="Quick log: Walked"
+          >
+            <span className="text-xl">🦮</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onQuickLog?.("toilet");
+            }}
+            className="py-2 rounded-lg bg-yellow-50 hover:bg-yellow-100 active:scale-95 transition-all"
+            title="Quick log: Toilet"
+          >
+            <span className="text-xl">🌿</span>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onQuickLog?.("meds");
+            }}
+            className="py-2 rounded-lg bg-rose-50 hover:bg-rose-100 active:scale-95 transition-all"
+            title="Quick log: Meds"
+          >
+            <span className="text-xl">💊</span>
+          </button>
+        </div>
+      )}
 
       <button
         className="w-full py-2.5 rounded-xl text-sm font-medium bg-light-tan text-warm-brown hover:opacity-80 active:scale-95 transition-all duration-150"

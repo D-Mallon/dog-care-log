@@ -2,6 +2,7 @@ import { supabase } from "../lib/supabase.ts";
 import type { Dog, CareEvent, WeightLog } from "../types/core.ts";
 import { useState } from "react";
 import getTimeAgo from "../lib/utils.ts";
+import { EVENT_DISPLAY } from "../components/DogStatusCard.tsx";
 
 type DogProfileScreenProps = {
   dog: Dog;
@@ -23,6 +24,9 @@ const EVENT_COLOURS: Record<
   walk: { bg: "bg-green-50", text: "text-green-800", emoji: "🦮" },
   toilet: { bg: "bg-yellow-50", text: "text-yellow-800", emoji: "🌿" },
   meds: { bg: "bg-rose-50", text: "text-rose-800", emoji: "💊" },
+  sick: { bg: "bg-red-50", text: "text-red-800", emoji: "🤒" },
+  nap_time: { bg: "bg-purple-50", text: "text-purple-800", emoji: "😴" },
+  play_time: { bg: "bg-blue-50", text: "text-blue-800", emoji: "🎾" },
 };
 
 export default function DogProfileScreen(props: DogProfileScreenProps) {
@@ -325,18 +329,46 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
           return (
             <div
               key={event.id}
-              className={`flex justify-between p-3 rounded-xl ${c.bg}`}
+              className={`flex justify-between items-start p-3 rounded-xl mb-2 ${c.bg}`}
             >
-              <span>
-                {c.emoji} {event.type}
-              </span>
-              <span>{getTimeAgo(event.timestamp)}</span>
+              <div className="flex-1">
+                <span className={`font-medium ${c.text}`}>
+                  {c.emoji} {EVENT_DISPLAY[event.type].label}
+                  {event.type === "toilet" &&
+                    event.subtype &&
+                    ` ${event.subtype === "pee" ? "💧" : event.subtype === "poo" ? "💩" : ""}`}
+                  {event.isAccident && " ⚠️"}
+                </span>
+                {event.note && (
+                  <p className="text-xs text-text-muted mt-1 italic">
+                    "{event.note}"
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-text-muted">
+                  {getTimeAgo(event.timestamp)}
+                </span>
+                <button
+                  onClick={() => {
+                    if (window.confirm("Delete this event?")) {
+                      props.onDeleteEvent(event.id);
+                    }
+                  }}
+                  className="text-xs text-rose-400 hover:text-rose-600"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           );
         })}
 
         {sortedEvents.length > visibleEvents && (
-          <button onClick={() => setVisibleEvents((v) => v + 10)}>
+          <button
+            onClick={() => setVisibleEvents((v) => v + 10)}
+            className="w-full py-2 mt-2 rounded-lg text-sm font-medium text-warm-brown hover:bg-warm-brown/10 transition-colors"
+          >
             Load more
           </button>
         )}

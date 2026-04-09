@@ -29,6 +29,7 @@ function App() {
   const [dogsLoading, setDogsLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
+  const [quickToiletDogId, setQuickToiletDogId] = useState<string | null>(null);
 
   // derive combined loading state
   const isLoading = dogsLoading || eventsLoading;
@@ -173,6 +174,77 @@ function App() {
     setCurrentScreen("home");
   }
 
+  async function handleQuickLog(dogId: string, eventType: EventType) {
+    if (!claims) return;
+
+    // For toilet events, show the selection modal instead
+    if (eventType === "toilet") {
+      setQuickToiletDogId(dogId);
+      return;
+    }
+
+    const newEvent: CareEvent = {
+      id: crypto.randomUUID(),
+      dogId: dogId,
+      type: eventType,
+      timestamp: new Date().toISOString(),
+      userId: claims.sub,
+    };
+
+    const { error } = await supabase.from("DogEvent").insert({
+      id: newEvent.id,
+      dogId: dogId,
+      type: eventType,
+      timestamp: newEvent.timestamp,
+      userId: newEvent.userId,
+      note: null,
+    });
+
+    if (error) {
+      console.error("Error inserting quick event:", error);
+      return;
+    }
+
+    setEvents((prevEvents) => [...prevEvents, newEvent]);
+  }
+
+  async function handleQuickToilet(
+    dogId: string,
+    subtype: "pee" | "poo",
+    isAccident: boolean = false,
+  ) {
+    if (!claims) return;
+
+    const newEvent: CareEvent = {
+      id: crypto.randomUUID(),
+      dogId: dogId,
+      type: "toilet",
+      subtype: subtype,
+      isAccident: isAccident,
+      timestamp: new Date().toISOString(),
+      userId: claims.sub,
+    };
+
+    const { error } = await supabase.from("DogEvent").insert({
+      id: newEvent.id,
+      dogId: dogId,
+      type: "toilet",
+      subtype: subtype,
+      isAccident: isAccident,
+      timestamp: newEvent.timestamp,
+      userId: newEvent.userId,
+      note: null,
+    });
+
+    if (error) {
+      console.error("Error inserting quick toilet event:", error);
+      return;
+    }
+
+    setEvents((prevEvents) => [...prevEvents, newEvent]);
+    setQuickToiletDogId(null);
+  }
+
   if (!claims) return <AuthScreen />;
 
   if (!household)
@@ -305,6 +377,9 @@ function App() {
                     setSelectedDogId(dog.dogId);
                     changeScreen("logEvent");
                   }}
+                  onQuickLog={(eventType) =>
+                    handleQuickLog(dog.dogId, eventType)
+                  }
                 />
               );
             })
@@ -353,6 +428,76 @@ function App() {
           <p className="text-sm text-text-muted text-center py-2">
             No events logged today yet. Tap a dog card to log one.
           </p>
+        )}
+
+        {/* Quick Toilet Selection Modal */}
+        {quickToiletDogId && (
+          <div
+            className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
+            onClick={() => setQuickToiletDogId(null)}
+          >
+            <div
+              className="bg-white rounded-2xl p-6 max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-warm-brown mb-4">
+                Quick log toilet for {getDogNameById(quickToiletDogId, dogs)}
+              </h3>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <button
+                  onClick={() => handleQuickToilet(quickToiletDogId, "pee")}
+                  className="py-4 rounded-xl bg-yellow-50 hover:bg-yellow-100 border-2 border-yellow-200 active:scale-95 transition-all"
+                >
+                  <div className="text-3xl mb-1">💧</div>
+                  <div className="text-sm font-semibold text-yellow-800">
+                    Pee
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => handleQuickToilet(quickToiletDogId, "poo")}
+                  className="py-4 rounded-xl bg-yellow-50 hover:bg-yellow-100 border-2 border-yellow-200 active:scale-95 transition-all"
+                >
+                  <div className="text-3xl mb-1">💩</div>
+                  <div className="text-sm font-semibold text-yellow-800">
+                    Poo
+                  </div>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <button
+                  onClick={() =>
+                    handleQuickToilet(quickToiletDogId, "pee", true)
+                  }
+                  className="py-3 rounded-xl bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 active:scale-95 transition-all"
+                >
+                  <div className="text-sm font-semibold text-rose-700">
+                    💧 Accident
+                  </div>
+                </button>
+
+                <button
+                  onClick={() =>
+                    handleQuickToilet(quickToiletDogId, "poo", true)
+                  }
+                  className="py-3 rounded-xl bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 active:scale-95 transition-all"
+                >
+                  <div className="text-sm font-semibold text-rose-700">
+                    💩 Accident
+                  </div>
+                </button>
+              </div>
+
+              <button
+                onClick={() => setQuickToiletDogId(null)}
+                className="w-full py-2.5 rounded-xl text-sm font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         )}
       </>
     );
