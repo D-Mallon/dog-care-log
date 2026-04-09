@@ -2,7 +2,7 @@ import "./App.css";
 // import bernerImage from "./images/berner.jpeg";
 // import adaImage from "./images/adaImage.jpg";
 // import bearImage from "./images/bearImage.jpg";
-import DogStatusCard from "./components/DogStatusCard.tsx";
+import DogStatusCard, { EVENT_DISPLAY } from "./components/DogStatusCard.tsx";
 import LogEventScreen from "./screens/LogEventScreen.tsx";
 import RegisterNewDogScreen from "./screens/RegisterNewDogScreen.tsx";
 import AuthScreen from "./screens/AuthScreen.tsx";
@@ -327,8 +327,8 @@ function App() {
                   <span className="font-medium">
                     {getDogNameById(event.dogId, dogs)}
                   </span>
-                  <span className="capitalize text-text-muted">
-                    {event.type}
+                  <span className="text-text-muted">
+                    {EVENT_DISPLAY[event.type].label}
                   </span>
                   <span className="text-xs text-text-muted">
                     {getTimeAgo(event.timestamp)}

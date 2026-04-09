@@ -12,7 +12,7 @@ type DogStatusCardProps = {
   onViewProfile: () => void;
 };
 
-const EVENT_DISPLAY: Record<
+export const EVENT_DISPLAY: Record<
   EventType,
   { label: string; colourClass: string; dot: string }
 > = {
@@ -35,6 +35,21 @@ const EVENT_DISPLAY: Record<
     label: "Meds",
     colourClass: "bg-rose-50 text-rose-800",
     dot: "bg-rose-400",
+  },
+  sick: {
+    label: "Sick",
+    colourClass: "bg-red-50 text-red-800",
+    dot: "bg-red-400",
+  },
+  nap_time: {
+    label: "Nap Time",
+    colourClass: "bg-purple-50 text-purple-800",
+    dot: "bg-purple-400",
+  },
+  play_time: {
+    label: "Play Time",
+    colourClass: "bg-blue-50 text-blue-800",
+    dot: "bg-blue-400",
   },
 };
 

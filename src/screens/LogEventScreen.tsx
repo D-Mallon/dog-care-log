@@ -53,6 +53,33 @@ const EVENT_OPTIONS: {
     border: "#9f1239",
     text: "#9f1239",
   },
+  {
+    value: "sick",
+    label: "Sick",
+    emoji: "🤒",
+    colour: "#b91c1c",
+    bg: "#fee2e2",
+    border: "#b91c1c",
+    text: "#b91c1c",
+  },
+  {
+    value: "nap_time",
+    label: "Nap Time",
+    emoji: "😴",
+    colour: "#4c0519",
+    bg: "#fce7f3",
+    border: "#4c0519",
+    text: "#4c0519",
+  },
+  {
+    value: "play_time",
+    label: "Play Time",
+    emoji: "🎾",
+    colour: "#1d4ed8",
+    bg: "#dbeafe",
+    border: "#1d4ed8",
+    text: "#1d4ed8",
+  },
 ];
 
 const labelClass =
@@ -61,6 +88,8 @@ const labelClass =
 export default function LogEventScreen(props: LogEventScreenProps) {
   const [selectedDogId] = useState<string>(props.selectedDogId || "");
   const [selectedEvent, setSelectedEvent] = useState<EventType | "">("");
+  const [selectedSubtype, setSelectedSubtype] = useState<"pee" | "poo" | "other" | "">("");
+  const [isAccident, setIsAccident] = useState<boolean>(false);
   const [userOptionalNote, setUserOptionalNote] = useState("");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -77,6 +106,8 @@ export default function LogEventScreen(props: LogEventScreenProps) {
       timestamp: new Date().toISOString(),
       userId: props.userIdInDB,
       note: userOptionalNote,
+      ...(selectedEvent === "toilet" && selectedSubtype && { subtype: selectedSubtype }),
+      ...(selectedEvent === "toilet" && isAccident && { isAccident: isAccident }),
     };
 
     const { error } = await supabase.from("DogEvent").insert({
@@ -86,6 +117,8 @@ export default function LogEventScreen(props: LogEventScreenProps) {
       timestamp: newEvent.timestamp,
       userId: newEvent.userId,
       note: userOptionalNote || null,
+      ...(selectedEvent === "toilet" && selectedSubtype && { subtype: selectedSubtype }),
+      ...(selectedEvent === "toilet" && isAccident && { isAccident: isAccident }),
     });
 
     if (error) {
@@ -130,9 +163,14 @@ export default function LogEventScreen(props: LogEventScreenProps) {
                     name="event"
                     value={option.value}
                     checked={isSelected}
-                    onChange={(e) =>
-                      setSelectedEvent(e.target.value as EventType)
-                    }
+                    onChange={(e) => {
+                      setSelectedEvent(e.target.value as EventType);
+                      // Reset subtype and accident when event type changes
+                      if (e.target.value !== "toilet") {
+                        setSelectedSubtype("");
+                        setIsAccident(false);
+                      }
+                    }}
                     className="hidden"
                   />
                   <span className="text-xl">{option.emoji}</span>
@@ -149,6 +187,85 @@ export default function LogEventScreen(props: LogEventScreenProps) {
             })}
           </div>
         </div>
+
+        {selectedEvent === "toilet" && (
+          <div className="mb-6">
+            <p className={labelClass}>Toilet Type</p>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <label
+                className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 cursor-pointer transition-all duration-150 ${
+                  selectedSubtype === "pee"
+                    ? "border-warm-brown/50"
+                    : "border-warm-brown/12"
+                }`}
+                style={{
+                  backgroundColor: selectedSubtype === "pee" ? "#fef9c3" : "white",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="toiletType"
+                  value="pee"
+                  checked={selectedSubtype === "pee"}
+                  onChange={() => setSelectedSubtype("pee")}
+                  className="hidden"
+                />
+                <span className="text-xl">💧</span>
+                <span
+                  className="text-sm font-semibold"
+                  style={{
+                    color:
+                      selectedSubtype === "pee"
+                        ? "var(--warm-brown)"
+                        : "var(--text-dark)",
+                  }}
+                >
+                  Pee
+                </span>
+              </label>
+              <label
+                className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 cursor-pointer transition-all duration-150 ${
+                  selectedSubtype === "poo"
+                    ? "border-warm-brown/50"
+                    : "border-warm-brown/12"
+                }`}
+                style={{
+                  backgroundColor: selectedSubtype === "poo" ? "#fef9c3" : "white",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="toiletType"
+                  value="poo"
+                  checked={selectedSubtype === "poo"}
+                  onChange={() => setSelectedSubtype("poo")}
+                  className="hidden"
+                />
+                <span className="text-xl">💩</span>
+                <span
+                  className="text-sm font-semibold"
+                  style={{
+                    color:
+                      selectedSubtype === "poo"
+                        ? "var(--warm-brown)"
+                        : "var(--text-dark)",
+                  }}
+                >
+                  Poo
+                </span>
+              </label>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isAccident}
+                onChange={(e) => setIsAccident(e.target.checked)}
+                className="form-checkbox h-4 w-4 text-warm-brown rounded border-gray-300 focus:ring-warm-brown"
+              />
+              <span className="text-sm font-medium text-text-dark">Accident?</span>
+            </label>
+          </div>
+        )}
 
         <div className="mb-8">
           <label className={labelClass}>Notes (optional)</label>
