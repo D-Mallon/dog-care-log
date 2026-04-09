@@ -48,8 +48,6 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
         .from("dog-images")
         .upload(filePath, newDogImageFile);
 
-      console.log("Upload result:", uploadData);
-
       if (uploadError) {
         console.error("Error uploading image:", uploadError);
         setIsSubmitting(false);

@@ -88,7 +88,9 @@ const labelClass =
 export default function LogEventScreen(props: LogEventScreenProps) {
   const [selectedDogId] = useState<string>(props.selectedDogId || "");
   const [selectedEvent, setSelectedEvent] = useState<EventType | "">("");
-  const [selectedSubtype, setSelectedSubtype] = useState<"pee" | "poo" | "other" | "">("");
+  const [selectedSubtypes, setSelectedSubtypes] = useState<("pee" | "poo")[]>(
+    [],
+  );
   const [isAccident, setIsAccident] = useState<boolean>(false);
   const [userOptionalNote, setUserOptionalNote] = useState("");
 
@@ -99,6 +101,40 @@ export default function LogEventScreen(props: LogEventScreenProps) {
       return;
     }
 
+    if (selectedEvent === "toilet" && selectedSubtypes.length > 0) {
+      for (const subtype of selectedSubtypes) {
+        const newEvent: CareEvent = {
+          id: crypto.randomUUID(),
+          dogId: selectedDogId,
+          type: selectedEvent,
+          timestamp: new Date().toISOString(),
+          userId: props.userIdInDB,
+          note: userOptionalNote,
+          subtype: subtype,
+          isAccident: isAccident,
+        };
+
+        const { error } = await supabase.from("DogEvent").insert({
+          id: newEvent.id,
+          dogId: selectedDogId,
+          type: selectedEvent,
+          timestamp: newEvent.timestamp,
+          userId: newEvent.userId,
+          note: userOptionalNote || null,
+          subtype: subtype,
+          isAccident: isAccident,
+        });
+
+        if (error) {
+          console.error("Error inserting event into database:", error);
+          return;
+        }
+
+        props.onSubmitEvent(newEvent);
+      }
+      return;
+    }
+
     const newEvent: CareEvent = {
       id: crypto.randomUUID(),
       dogId: selectedDogId,
@@ -106,8 +142,6 @@ export default function LogEventScreen(props: LogEventScreenProps) {
       timestamp: new Date().toISOString(),
       userId: props.userIdInDB,
       note: userOptionalNote,
-      ...(selectedEvent === "toilet" && selectedSubtype && { subtype: selectedSubtype }),
-      ...(selectedEvent === "toilet" && isAccident && { isAccident: isAccident }),
     };
 
     const { error } = await supabase.from("DogEvent").insert({
@@ -117,8 +151,6 @@ export default function LogEventScreen(props: LogEventScreenProps) {
       timestamp: newEvent.timestamp,
       userId: newEvent.userId,
       note: userOptionalNote || null,
-      ...(selectedEvent === "toilet" && selectedSubtype && { subtype: selectedSubtype }),
-      ...(selectedEvent === "toilet" && isAccident && { isAccident: isAccident }),
     });
 
     if (error) {
@@ -150,9 +182,7 @@ export default function LogEventScreen(props: LogEventScreenProps) {
                 <label
                   key={option.value}
                   className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 cursor-pointer transition-all duration-150 ${
-                    isSelected
-                      ? "border-warm-brown/50"
-                      : "border-warm-brown/12"
+                    isSelected ? "border-warm-brown/50" : "border-warm-brown/12"
                   }`}
                   style={{
                     backgroundColor: isSelected ? option.bg : "white",
@@ -167,7 +197,7 @@ export default function LogEventScreen(props: LogEventScreenProps) {
                       setSelectedEvent(e.target.value as EventType);
                       // Reset subtype and accident when event type changes
                       if (e.target.value !== "toilet") {
-                        setSelectedSubtype("");
+                        setSelectedSubtypes([]);
                         setIsAccident(false);
                       }
                     }}
@@ -194,30 +224,37 @@ export default function LogEventScreen(props: LogEventScreenProps) {
             <div className="grid grid-cols-2 gap-3 mb-4">
               <label
                 className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 cursor-pointer transition-all duration-150 ${
-                  selectedSubtype === "pee"
+                  selectedSubtypes.includes("pee")
                     ? "border-warm-brown/50"
                     : "border-warm-brown/12"
                 }`}
                 style={{
-                  backgroundColor: selectedSubtype === "pee" ? "#fef9c3" : "white",
+                  backgroundColor: selectedSubtypes.includes("pee")
+                    ? "#fef9c3"
+                    : "white",
                 }}
               >
                 <input
-                  type="radio"
-                  name="toiletType"
-                  value="pee"
-                  checked={selectedSubtype === "pee"}
-                  onChange={() => setSelectedSubtype("pee")}
+                  type="checkbox"
+                  checked={selectedSubtypes.includes("pee")}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedSubtypes([...selectedSubtypes, "pee"]);
+                    } else {
+                      setSelectedSubtypes(
+                        selectedSubtypes.filter((s) => s !== "pee"),
+                      );
+                    }
+                  }}
                   className="hidden"
                 />
                 <span className="text-xl">💧</span>
                 <span
                   className="text-sm font-semibold"
                   style={{
-                    color:
-                      selectedSubtype === "pee"
-                        ? "var(--warm-brown)"
-                        : "var(--text-dark)",
+                    color: selectedSubtypes.includes("pee")
+                      ? "var(--warm-brown)"
+                      : "var(--text-dark)",
                   }}
                 >
                   Pee
@@ -225,30 +262,37 @@ export default function LogEventScreen(props: LogEventScreenProps) {
               </label>
               <label
                 className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 cursor-pointer transition-all duration-150 ${
-                  selectedSubtype === "poo"
+                  selectedSubtypes.includes("poo")
                     ? "border-warm-brown/50"
                     : "border-warm-brown/12"
                 }`}
                 style={{
-                  backgroundColor: selectedSubtype === "poo" ? "#fef9c3" : "white",
+                  backgroundColor: selectedSubtypes.includes("poo")
+                    ? "#fef9c3"
+                    : "white",
                 }}
               >
                 <input
-                  type="radio"
-                  name="toiletType"
-                  value="poo"
-                  checked={selectedSubtype === "poo"}
-                  onChange={() => setSelectedSubtype("poo")}
+                  type="checkbox"
+                  checked={selectedSubtypes.includes("poo")}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedSubtypes([...selectedSubtypes, "poo"]);
+                    } else {
+                      setSelectedSubtypes(
+                        selectedSubtypes.filter((s) => s !== "poo"),
+                      );
+                    }
+                  }}
                   className="hidden"
                 />
                 <span className="text-xl">💩</span>
                 <span
                   className="text-sm font-semibold"
                   style={{
-                    color:
-                      selectedSubtype === "poo"
-                        ? "var(--warm-brown)"
-                        : "var(--text-dark)",
+                    color: selectedSubtypes.includes("poo")
+                      ? "var(--warm-brown)"
+                      : "var(--text-dark)",
                   }}
                 >
                   Poo
@@ -262,7 +306,9 @@ export default function LogEventScreen(props: LogEventScreenProps) {
                 onChange={(e) => setIsAccident(e.target.checked)}
                 className="form-checkbox h-4 w-4 text-warm-brown rounded border-gray-300 focus:ring-warm-brown"
               />
-              <span className="text-sm font-medium text-text-dark">Accident?</span>
+              <span className="text-sm font-medium text-text-dark">
+                Accident?
+              </span>
             </label>
           </div>
         )}

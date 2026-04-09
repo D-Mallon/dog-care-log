@@ -3,8 +3,6 @@ export default function getTimeAgo(timestamp: string): string {
   const totalMinutes = Math.floor(diffMs / (1000 * 60));
   const totalHours = Math.floor(totalMinutes / 60);
   const totalDays = Math.floor(totalHours / 24);
-  console.log("diffMs:", diffMs);
-  console.log("totalMinutes:", totalMinutes);
 
   if (totalMinutes < 1) {
     return "Just now";

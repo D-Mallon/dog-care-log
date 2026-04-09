@@ -81,12 +81,10 @@ function App() {
 
   function handleDataFromChildNewEvent(careEvent: CareEvent) {
     setEvents((prevEvents) => [...prevEvents, careEvent]);
-    console.log("New event object:", careEvent);
     setCurrentScreen("home");
   }
 
   function handleDataFromChildNewDog(newDog: Dog) {
-    console.log("New dog object:", newDog);
     getInitialDogs();
     setCurrentScreen("home");
   }
@@ -329,6 +327,10 @@ function App() {
                   </span>
                   <span className="text-text-muted">
                     {EVENT_DISPLAY[event.type].label}
+                    {event.type === "toilet" &&
+                      event.subtype &&
+                      ` ${event.subtype === "pee" ? "💧" : event.subtype === "poo" ? "💩" : ""}`}
+                    {event.isAccident && " ⚠️"}
                   </span>
                   <span className="text-xs text-text-muted">
                     {getTimeAgo(event.timestamp)}
