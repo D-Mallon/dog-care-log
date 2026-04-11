@@ -23,6 +23,7 @@ function App() {
   const [events, setEvents] = useState<CareEvent[]>([]);
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
   const [claims, setClaims] = useState<JwtPayload | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   // claims is the decoded JWT token which contains user info and is null if not authenticated. It is created when Supabase.auth.getClaims() is called, which is done on initial render and whenever the auth state changes.
   const [household, setHousehold] = useState<Household | null>(null);
   const [copied, setCopied] = useState(false);
@@ -38,6 +39,7 @@ function App() {
     // Check for existing session using getClaims
     supabase.auth.getClaims().then(({ data }) => {
       setClaims(data?.claims ?? null);
+      setIsInitializing(false); // Only set false after first check
     });
     // Listen for auth changes
     const {
@@ -245,6 +247,20 @@ function App() {
     setQuickToiletDogId(null);
   }
 
+  // Show loading screen while initializing
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-cream">
+        <div className="text-center">
+          <h1 className="text-5xl font-bold font-fraunces text-warm-brown mb-2">
+            Loggi
+          </h1>
+          <p className="text-sm text-text-muted">Loading your pack...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!claims) return <AuthScreen />;
 
   if (!household)
@@ -276,9 +292,9 @@ function App() {
 
     return (
       <>
-        {/* Header */}
+        {/* Header - Updated version */}
         <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex justify-between items-start mb-6">
             <div>
               <p className="text-xs font-medium tracking-widest uppercase text-text-muted mb-1">
                 your pack
@@ -287,22 +303,24 @@ function App() {
                 Loggi
               </h1>
             </div>
-            <div className="flex flex-col items-end gap-2">
-              <button
-                onClick={() => supabase.auth.signOut()}
-                className="text-sm px-3 py-1.5 rounded-lg text-text-muted border border-warm-brown/20 bg-transparent hover:bg-light-tan transition-colors"
-              >
-                Log out
-              </button>
+
+            {/* Simplified button group */}
+            <div className="flex gap-2">
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(household.inviteCode);
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}
-                className="text-sm px-3 py-1.5 rounded-lg text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
+                className="px-3 py-2 rounded-lg text-xs font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
               >
-                {copied ? "Copied! ✓" : "Share 🐾"}
+                {copied ? "✓ Copied" : "Share your pack code 🐾"}
+              </button>
+              <button
+                onClick={() => supabase.auth.signOut()}
+                className="px-3 py-2 rounded-lg text-xs font-medium text-text-muted hover:text-warm-brown transition-colors"
+              >
+                Log out
               </button>
             </div>
           </div>
@@ -429,6 +447,18 @@ function App() {
             No events logged today yet. Tap a dog card to log one.
           </p>
         )}
+
+        {/* Feedback button - place at the very end of home screen, before closing </> */}
+        <div className="mt-8 pt-6 border-t border-warm-brown/10">
+          <button
+            onClick={() => {
+              window.open("https://forms.gle/cMtnvK4MEdMrGmyH6", "_blank");
+            }}
+            className="w-full py-3 rounded-xl text-sm font-medium text-warm-brown border-2 border-warm-brown/20 hover:bg-light-tan transition-colors"
+          >
+            🐛 Report a bug or request a feature
+          </button>
+        </div>
 
         {/* Quick Toilet Selection Modal */}
         {quickToiletDogId && (
