@@ -1,7 +1,4 @@
 import "./App.css";
-// import bernerImage from "./images/berner.jpeg";
-// import adaImage from "./images/adaImage.jpg";
-// import bearImage from "./images/bearImage.jpg";
 import DogStatusCard, { EVENT_DISPLAY } from "./components/DogStatusCard.tsx";
 import LogEventScreen from "./screens/LogEventScreen.tsx";
 import RegisterNewDogScreen from "./screens/RegisterNewDogScreen.tsx";
@@ -32,8 +29,10 @@ function App() {
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [quickToiletDogId, setQuickToiletDogId] = useState<string | null>(null);
 
-  // derive combined loading state
+  // Show full loading spinner until BOTH dogs and events are loaded
+  // This prevents rendering with partial data (e.g. dogs loaded but events still loading)
   const isLoading = dogsLoading || eventsLoading;
+  const isHomeReady = !dogsLoading && !eventsLoading;
 
   useEffect(() => {
     // Check for existing session using getClaims
@@ -94,10 +93,8 @@ function App() {
 
   function getDogNameById(dogId: string, dogs: Dog[]): string {
     if (dogs.length === 0) return "No dog saved to profile";
-    else {
-      const dogSpecificEvents = dogs.find((dog) => dog.dogId === dogId);
-      return dogSpecificEvents ? dogSpecificEvents.dogName : "Unknown Dog";
-    }
+    const matchingDog = dogs.find((dog) => dog.dogId === dogId);
+    return matchingDog ? matchingDog.dogName : "Unknown Dog";
   }
 
   function getTheDogsLastEventTime(
@@ -271,8 +268,12 @@ function App() {
       />
     );
   if (currentScreen === "home") {
-    if (isLoading) {
-      return <p style={{ color: "var(--text-muted)" }}>Loading your pack...</p>;
+    if (!isHomeReady) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-sm text-text-muted">Loading your pack...</p>
+        </div>
+      );
     }
 
     const sortedEvents = [...events].sort(

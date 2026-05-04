@@ -7,7 +7,17 @@ type HouseholdSetupScreenProps = {
   onHouseholdReady: (household: Household) => void;
 };
 
-function generateInviteCode(): string {
+async function generateUniqueInviteCode(supabase: any): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const { data } = await supabase
+      .from("Household")
+      .select("id")
+      .eq("inviteCode", code)
+      .maybeSingle();
+    if (!data) return code;
+  }
+  // Fallback: extremely unlikely to reach here, but just in case
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
@@ -26,7 +36,7 @@ export default function HouseholdSetupScreen(props: HouseholdSetupScreenProps) {
     const newHousehold: Household = {
       id: crypto.randomUUID(),
       name: householdName,
-      inviteCode: generateInviteCode(),
+      inviteCode: await generateUniqueInviteCode(supabase),
       createdBy: props.userIdInDB,
     };
 

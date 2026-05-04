@@ -320,8 +320,12 @@ export default function LogEventScreen(props: LogEventScreenProps) {
             onChange={(e) => setUserOptionalNote(e.target.value)}
             placeholder="Anything worth noting..."
             rows={3}
+            maxLength={500}
             className="w-full px-4 py-3 rounded-xl border-2 border-warm-brown/20 bg-cream text-text-dark text-sm font-dm-sans resize-none outline-none focus:border-warm-brown/50 transition-colors"
           />
+          <p className="text-xs text-text-muted mt-1 text-right">
+            {userOptionalNote.length}/500
+          </p>
         </div>
 
         <button

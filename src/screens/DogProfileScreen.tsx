@@ -117,11 +117,11 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
     const currentWeight = props.dog.weight ?? null;
     const newWeight = editedWeight === "" ? null : Number(editedWeight);
 
-    if (newWeight !== currentWeight) {
+    if (newWeight !== currentWeight && newWeight !== null) {
       await supabase.from("WeightLog").insert({
         id: crypto.randomUUID(),
         dogId: props.dog.dogId,
-        weight: editedWeight, // Keep editedWeight as is, it will be Number or "" so supabase should handle it
+        weight: newWeight,
         recordedAt: new Date().toISOString(),
       });
 
@@ -172,7 +172,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
                     </div>
                   )}
 
-                  {latestWeight != null && latestWeight !== null && (
+                  {latestWeight != null && (
                     <div className="px-3 py-2 rounded-xl bg-green-50">
                       <p className="text-xs uppercase text-green-600">Weight</p>
                       <p className="text-sm font-semibold text-green-800">

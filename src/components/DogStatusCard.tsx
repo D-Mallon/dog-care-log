@@ -24,7 +24,7 @@ export const EVENT_DISPLAY: Record<
   },
   walk: {
     label: "Walked",
-    colourClass: "bg-sage-50 text-green-800",
+    colourClass: "bg-green-50 text-green-800",
     dot: "bg-green-400",
   },
   toilet: {
