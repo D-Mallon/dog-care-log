@@ -1,73 +1,77 @@
-# React + TypeScript + Vite
+# Loggi 🐾
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A Progressive Web App for tracking dog care events — feeding, walking, toilet breaks, medication, and more. Built for multi-dog households to keep everyone in the pack on the same page.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Quick-log events** — Tap to log feed, walk, toilet, or meds in one click
+- **Full event logging** — Detailed form with event type, notes, and toilet subtypes (pee/poo/accident)
+- **Multi-dog support** — Add multiple dogs to your household
+- **Household sharing** — Share an invite code so other household members can log events too
+- **Today's events timeline** — See everything logged today at a glance
+- **Dog profiles** — View event history, track weight over time, edit dog details
+- **PWA** — Installable on mobile and desktop, works offline with service worker caching
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS
+- **Backend:** Supabase (Postgres, Auth, Storage)
+- **Auth:** Supabase Auth UI
+- **PWA:** vite-plugin-pwa
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Node.js 18+
+- A Supabase project (free tier works)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Setup
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1. Clone the repo
+2. Copy `.env.example` to `.env` and fill in your Supabase project credentials:
+   ```
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+4. Start the dev server:
+   ```bash
+   npm run dev
+   ```
+
+### Database Setup
+
+The app expects the following Supabase tables:
+
+- `Household` — id, name, inviteCode, createdBy, createdAt
+- `HouseholdMember` — householdId, userId, role, status, joinedAt
+- `Dogs` — dogId, dogName, householdId, age, weight, notes, dogImage
+- `DogEvent` — id, dogId, type, subtype, isAccident, timestamp, userId, note
+- `WeightLog` — id, dogId, weight, recordedAt
+
+## Project Structure
+
+```
+src/
+├── App.tsx                    # Main app component, screen routing, state management
+├── types/core.ts              # Shared domain types
+├── components/
+│   └── DogStatusCard.tsx      # Reusable dog status card with quick-log buttons
+├── screens/
+│   ├── AuthScreen.tsx         # Login/signup via Supabase Auth UI
+│   ├── HouseholdSetupScreen.tsx  # Create or join a household
+│   ├── LogEventScreen.tsx     # Full event logging form
+│   ├── RegisterNewDogScreen.tsx  # Add a new dog to the household
+│   └── DogProfileScreen.tsx   # View/edit dog profile, event history, weight tracking
+└── lib/
+    ├── supabase.ts            # Supabase client initialization
+    └── utils.ts               # Utility functions (getTimeAgo)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## License
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+MIT

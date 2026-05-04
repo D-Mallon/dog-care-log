@@ -28,8 +28,13 @@ function App() {
   const [eventsLoading, setEventsLoading] = useState(true);
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
   const [quickToiletDogId, setQuickToiletDogId] = useState<string | null>(null);
+  const [confirmDeleteEventId, setConfirmDeleteEventId] = useState<
+    string | null
+  >(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Show full loading spinner until BOTH dogs and events are loaded
+
   // This prevents rendering with partial data (e.g. dogs loaded but events still loading)
   const isLoading = dogsLoading || eventsLoading;
   const isHomeReady = !dogsLoading && !eventsLoading;
@@ -56,13 +61,36 @@ function App() {
   }
 
   async function getInitialDogs() {
-    const { data } = await supabase.from("Dogs").select();
+    if (!household) return;
+    const { data } = await supabase
+      .from("Dogs")
+      .select()
+      .eq("householdId", household.id);
     setDogs(data ?? []);
     setDogsLoading(false);
   }
 
   async function getDogEvents() {
-    const { data } = await supabase.from("DogEvent").select();
+    if (!household) return;
+    // Fetch events scoped to this household by joining through the Dogs table
+    const { data: householdDogIds } = await supabase
+      .from("Dogs")
+      .select("dogId")
+      .eq("householdId", household.id);
+
+    const dogIds = (householdDogIds ?? []).map((d) => d.dogId);
+
+    if (dogIds.length === 0) {
+      setEvents([]);
+      setEventsLoading(false);
+      return;
+    }
+
+    const { data } = await supabase
+      .from("DogEvent")
+      .select()
+      .in("dogId", dogIds);
+
     setEvents(data ?? []);
     setEventsLoading(false);
   }
@@ -153,6 +181,8 @@ function App() {
       .eq("id", eventId);
     if (error) {
       console.error("Error deleting event:", error);
+      setErrorMessage("Failed to delete event. Please try again.");
+      setTimeout(() => setErrorMessage(null), 4000);
       return;
     }
     setEvents((prevEvents) =>
@@ -164,8 +194,11 @@ function App() {
     const { error } = await supabase.from("Dogs").delete().eq("dogId", dogId);
     if (error) {
       console.error("Error deleting dog:", error);
+      setErrorMessage("Failed to delete dog. Please try again.");
+      setTimeout(() => setErrorMessage(null), 4000);
       return;
     }
+
     setDogs((prevDogs) => prevDogs.filter((dog) => dog.dogId !== dogId));
     setEvents((prevEvents) =>
       prevEvents.filter((event) => event.dogId !== dogId),
@@ -293,7 +326,23 @@ function App() {
 
     return (
       <>
+        {/* Error Toast */}
+        {errorMessage && (
+          <div className="fixed top-4 left-4 right-4 z-50 max-w-md mx-auto">
+            <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl px-4 py-3 text-sm flex items-center justify-between shadow-lg">
+              <span>{errorMessage}</span>
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="ml-3 text-rose-400 hover:text-rose-600 flex-shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Header - Updated version */}
+
         <div className="mb-8">
           <div className="flex justify-between items-start mb-6">
             <div>
@@ -430,11 +479,7 @@ function App() {
                     {getTimeAgo(event.timestamp)}
                   </span>
                   <button
-                    onClick={() => {
-                      if (window.confirm("Delete this event?")) {
-                        handleDeleteEvent(event.id);
-                      }
-                    }}
+                    onClick={() => setConfirmDeleteEventId(event.id)}
                     className="text-xs text-rose-400 hover:text-rose-600 transition-colors ml-2 flex-shrink-0"
                   >
                     ✕
@@ -461,7 +506,45 @@ function App() {
           </button>
         </div>
 
+        {/* Delete Event Confirmation Modal */}
+        {confirmDeleteEventId && (
+          <div
+            className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
+            onClick={() => setConfirmDeleteEventId(null)}
+          >
+            <div
+              className="bg-white rounded-2xl p-6 max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-warm-brown mb-2">
+                Delete this event?
+              </h3>
+              <p className="text-sm text-text-muted mb-6">
+                This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    handleDeleteEvent(confirmDeleteEventId);
+                    setConfirmDeleteEventId(null);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-rose-500 text-white hover:bg-rose-600 transition-colors"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => setConfirmDeleteEventId(null)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Quick Toilet Selection Modal */}
+
         {quickToiletDogId && (
           <div
             className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"

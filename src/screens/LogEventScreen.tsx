@@ -93,13 +93,16 @@ export default function LogEventScreen(props: LogEventScreenProps) {
   );
   const [isAccident, setIsAccident] = useState<boolean>(false);
   const [userOptionalNote, setUserOptionalNote] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!selectedDogId || !selectedEvent) {
+    if (!selectedDogId || !selectedEvent || isSubmitting) {
       return;
     }
+
+    setIsSubmitting(true);
 
     if (selectedEvent === "toilet" && selectedSubtypes.length > 0) {
       for (const subtype of selectedSubtypes) {
@@ -127,11 +130,13 @@ export default function LogEventScreen(props: LogEventScreenProps) {
 
         if (error) {
           console.error("Error inserting event into database:", error);
+          setIsSubmitting(false);
           return;
         }
 
         props.onSubmitEvent(newEvent);
       }
+      setIsSubmitting(false);
       return;
     }
 
@@ -155,6 +160,7 @@ export default function LogEventScreen(props: LogEventScreenProps) {
 
     if (error) {
       console.error("Error inserting event into database:", error);
+      setIsSubmitting(false);
       return;
     }
 
@@ -330,14 +336,14 @@ export default function LogEventScreen(props: LogEventScreenProps) {
 
         <button
           type="submit"
-          disabled={!selectedEvent}
+          disabled={!selectedEvent || isSubmitting}
           className={`w-full py-3.5 rounded-xl text-base font-semibold transition-all duration-150 ${
-            selectedEvent
+            selectedEvent && !isSubmitting
               ? "bg-warm-brown text-white hover:opacity-90 active:scale-98"
               : "bg-warm-brown/30 text-white cursor-not-allowed"
           }`}
         >
-          Save Event
+          {isSubmitting ? "Saving..." : "Save Event"}
         </button>
       </form>
     </div>
