@@ -1,125 +1,576 @@
 import "./App.css";
-import DogStatusCard, { EVENT_DISPLAY } from "./components/DogStatusCard.tsx";
+import DogStatusCard from "./components/DogStatusCard.tsx";
 import LogEventScreen from "./screens/LogEventScreen.tsx";
 import RegisterNewDogScreen from "./screens/RegisterNewDogScreen.tsx";
 import AuthScreen from "./screens/AuthScreen.tsx";
-import { useEffect, useState } from "react";
-import type { CareEvent, Dog, EventType, WeightLog } from "./types/core.ts";
-import { supabase } from "./lib/supabase.ts";
-import type { JwtPayload } from "@supabase/supabase-js";
 import DogProfileScreen from "./screens/DogProfileScreen.tsx";
-import getTimeAgo from "./lib/utils.ts";
 import HouseholdSetupScreen from "./screens/HouseholdSetupScreen.tsx";
-import type { Household } from "./types/core.ts";
+import HouseholdScreen from "./screens/HouseholdScreen.tsx";
+import PricingScreen from "./screens/PricingScreen.tsx";
+import LegalScreen from "./screens/LegalScreen.tsx";
+import AccountScreen from "./screens/AccountScreen.tsx";
+import ErrorToast from "./components/ErrorToast.tsx";
+import NoticeToast from "./components/NoticeToast.tsx";
+import Modal from "./components/Modal.tsx";
+import OfflineBanner from "./components/OfflineBanner.tsx";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import type {
+  CareEvent,
+  Dog,
+  EventType,
+  Household,
+  HouseholdMember,
+  WeightLog,
+} from "./types/core.ts";
+import { supabase } from "./lib/supabase.ts";
+import { isSupabaseConfigured, envErrorMessage } from "./lib/env.ts";
+import getTimeAgo from "./lib/utils.ts";
+import { EVENT_DISPLAY } from "./lib/eventMeta.ts";
+import { getCareUrgency } from "./lib/careStatus.ts";
+import { subscribeToHouseholdChanges } from "./lib/realtime.ts";
+import {
+  clearHouseholdSnapshot,
+  loadHouseholdSnapshot,
+  saveHouseholdSnapshot,
+} from "./lib/offlineCache.ts";
+import { copyText } from "./lib/clipboard.ts";
+import { canAddAnotherDog } from "./lib/planLimits.ts";
+import { AccountError, deleteAccount } from "./lib/account.ts";
+import {
+  accountExportFilename,
+  buildAccountExportCsv,
+} from "./lib/accountExport.ts";
+import {
+  getMemberLabel,
+  isHouseholdOwner,
+  sortHouseholdMembers,
+} from "./lib/householdMembers.ts";
+import {
+  BillingError,
+  getBillingSummary,
+  openBillingPortal,
+  startCheckout,
+} from "./lib/billing.ts";
+import type { BillingPlan, BillingSummary } from "./types/billing.ts";
+import type { HouseholdMemberView } from "./screens/HouseholdScreen.tsx";
 
-type Screen = "home" | "logEvent" | "addDog" | "dogProfile" | "householdSetup";
+type SessionClaims = {
+  sub: string;
+  email?: string;
+};
+
+type Screen =
+  | "home"
+  | "logEvent"
+  | "addDog"
+  | "dogProfile"
+  | "household"
+  | "pricing"
+  | "legal"
+  | "account";
+
+function detectRecoveryRedirect(): boolean {
+  if (typeof window === "undefined") return false;
+  const url = new URL(window.location.href);
+  const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+  return (
+    url.searchParams.get("type") === "recovery" ||
+    hash.get("type") === "recovery"
+  );
+}
+
+function SplashScreen({ message = "Loading your pack…" }: { message?: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-cream">
+      <div className="text-center">
+        <h1 className="text-5xl font-bold font-fraunces text-warm-brown mb-2">
+          Loggi
+        </h1>
+        <p className="text-sm text-text-muted">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+function FullScreenMessage({
+  title,
+  message,
+  actionLabel,
+  onAction,
+  secondaryLabel,
+  onSecondary,
+}: {
+  title: string;
+  message: string;
+  actionLabel: string;
+  onAction: () => void;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+}) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-cream p-6">
+      <div className="w-full max-w-sm rounded-3xl border border-warm-brown/10 bg-white p-6 text-center shadow-sm">
+        <div className="mb-3 text-4xl" aria-hidden="true">
+          🐾
+        </div>
+        <h1 className="mb-2 text-xl font-bold font-fraunces text-warm-brown">
+          {title}
+        </h1>
+        <p className="mb-5 text-sm text-text-muted">{message}</p>
+        <button
+          type="button"
+          onClick={onAction}
+          className="w-full rounded-xl bg-warm-brown py-3 text-sm font-semibold text-white hover:opacity-90"
+        >
+          {actionLabel}
+        </button>
+        {secondaryLabel && onSecondary && (
+          <button
+            type="button"
+            onClick={onSecondary}
+            className="mt-3 w-full rounded-xl border border-warm-brown/20 py-3 text-sm font-medium text-warm-brown hover:bg-light-tan"
+          >
+            {secondaryLabel}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AppChrome({
+  children,
+  errorMessage,
+  onDismissError,
+  noticeMessage,
+  onDismissNotice,
+}: {
+  children: ReactNode;
+  errorMessage: string | null;
+  onDismissError: () => void;
+  noticeMessage?: string | null;
+  onDismissNotice?: () => void;
+}) {
+  return (
+    <>
+      {children}
+      <OfflineBanner />
+      {noticeMessage && onDismissNotice && (
+        <NoticeToast message={noticeMessage} onDismiss={onDismissNotice} />
+      )}
+      <ErrorToast message={errorMessage} onDismiss={onDismissError} />
+    </>
+  );
+}
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home");
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [events, setEvents] = useState<CareEvent[]>([]);
+  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
+  const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
-  const [claims, setClaims] = useState<JwtPayload | null>(null);
+  const [claims, setClaims] = useState<SessionClaims | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
-  // claims is the decoded JWT token which contains user info and is null if not authenticated. It is created when Supabase.auth.getClaims() is called, which is done on initial render and whenever the auth state changes.
   const [household, setHousehold] = useState<Household | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [householdLoading, setHouseholdLoading] = useState(true);
+  const [householdError, setHouseholdError] = useState<string | null>(null);
   const [dogsLoading, setDogsLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(true);
-  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
+  const [dataError, setDataError] = useState<string | null>(null);
   const [quickToiletDogId, setQuickToiletDogId] = useState<string | null>(null);
+  const [quickLogPending, setQuickLogPending] = useState<string | null>(null);
   const [confirmDeleteEventId, setConfirmDeleteEventId] = useState<
     string | null
   >(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(
+    detectRecoveryRedirect,
+  );
+  const [billingSummary, setBillingSummary] = useState<BillingSummary | null>(
+    null,
+  );
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const currentUserIdRef = useRef<string | null>(null);
+  const hasLoadedDataRef = useRef(false);
 
-  // Show full loading spinner until BOTH dogs and events are loaded
+  const currentUserId = claims?.sub ?? "";
+  const isHouseholdOwnerUser =
+    household !== null &&
+    (members.length > 0
+      ? isHouseholdOwner(members, currentUserId)
+      : household.createdBy === currentUserId);
 
-  // This prevents rendering with partial data (e.g. dogs loaded but events still loading)
-  const isLoading = dogsLoading || eventsLoading;
-  const isHomeReady = !dogsLoading && !eventsLoading;
+  const isPremium = billingSummary?.entitlement.isEntitled ?? false;
+  const canAddDog = canAddAnotherDog(
+    isPremium,
+    dogs.length,
+    billingSummary !== null,
+  );
+
+  const memberViews = useMemo<HouseholdMemberView[]>(
+    () =>
+      sortHouseholdMembers(members).map((member) => ({
+        userId: member.userId,
+        displayName: member.displayName?.trim() || "Household member",
+        role: member.role,
+        status: member.status,
+        joinedAt: member.joinedAt ?? null,
+      })),
+    [members],
+  );
+
+  const resetDomainState = useCallback(() => {
+    setDogs([]);
+    setEvents([]);
+    setWeightLogs([]);
+    setMembers([]);
+    setHousehold(null);
+    setSelectedDogId(null);
+    setBillingSummary(null);
+    setBillingError(null);
+    setDataError(null);
+    setHouseholdError(null);
+    setDogsLoading(true);
+    setEventsLoading(true);
+    setHouseholdLoading(true);
+    setCurrentScreen("home");
+    hasLoadedDataRef.current = false;
+  }, []);
+
+  const loadHousehold = useCallback(async (userId: string) => {
+    setHouseholdLoading(true);
+    setHouseholdError(null);
+
+    const isStale = () => currentUserIdRef.current !== userId;
+
+    try {
+      const { data: membership, error: membershipError } = await supabase
+        .from("HouseholdMember")
+        .select("householdId")
+        .eq("userId", userId)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (membershipError) throw membershipError;
+      if (isStale()) return;
+
+      if (!membership) {
+        setHousehold(null);
+        setHouseholdLoading(false);
+        return;
+      }
+
+      const { data: householdData, error: householdLookupError } = await supabase
+        .from("Household")
+        .select()
+        .eq("id", membership.householdId)
+        .maybeSingle();
+
+      if (householdLookupError) throw householdLookupError;
+      if (isStale()) return;
+
+      setHousehold((householdData as Household | null) ?? null);
+    } catch (error) {
+      if (isStale()) return;
+      console.error("Error loading household:", error);
+      setHousehold(null);
+      setHouseholdError(
+        "We couldn't load your household. Check your connection and try again.",
+      );
+    } finally {
+      if (!isStale()) setHouseholdLoading(false);
+    }
+  }, []);
+
+  const loadHouseholdData = useCallback(
+    async (activeHousehold: Household, userId: string) => {
+      const isInitialLoad = !hasLoadedDataRef.current;
+      if (isInitialLoad) {
+        setDogsLoading(true);
+        setEventsLoading(true);
+      }
+      setDataError(null);
+
+      const isStale = () =>
+        Boolean(userId) && currentUserIdRef.current !== userId;
+
+      try {
+        const { data: dogsData, error: dogsError } = await supabase
+          .from("Dogs")
+          .select()
+          .eq("householdId", activeHousehold.id);
+
+        if (dogsError) throw dogsError;
+        if (isStale()) return;
+
+        const nextDogs = (dogsData ?? []) as Dog[];
+        setDogs(nextDogs);
+
+        const dogIds = nextDogs.map((dog) => dog.dogId);
+        let nextEvents: CareEvent[] = [];
+        let nextWeights: WeightLog[] = [];
+
+        if (dogIds.length > 0) {
+          const { data: eventsData, error: eventsError } = await supabase
+            .from("DogEvent")
+            .select()
+            .in("dogId", dogIds);
+
+          if (eventsError) throw eventsError;
+          if (isStale()) return;
+          nextEvents = (eventsData ?? []) as CareEvent[];
+          setEvents(nextEvents);
+
+          const { data: weightData, error: weightError } = await supabase
+            .from("WeightLog")
+            .select()
+            .in("dogId", dogIds);
+
+          if (weightError) throw weightError;
+          if (isStale()) return;
+          nextWeights = (weightData ?? []) as WeightLog[];
+          setWeightLogs(nextWeights);
+        } else {
+          setEvents([]);
+          setWeightLogs([]);
+        }
+
+        const { data: memberData, error: memberError } = await supabase
+          .from("HouseholdMember")
+          .select(
+            "householdId,userId,role,status,joinedAt,displayName",
+          )
+          .eq("householdId", activeHousehold.id);
+
+        if (isStale()) return;
+        if (memberError) {
+          console.error("Error loading household members:", memberError);
+          setErrorMessage(
+            "Couldn't load the household member list. Pull to refresh or try again.",
+          );
+        } else {
+          setMembers((memberData ?? []) as HouseholdMember[]);
+        }
+
+        if (userId) {
+          saveHouseholdSnapshot(userId, {
+            dogs: nextDogs,
+            events: nextEvents,
+            weightLogs: nextWeights,
+          });
+        }
+
+        hasLoadedDataRef.current = true;
+      } catch (error) {
+        if (isStale()) return;
+        console.error("Error loading household data:", error);
+
+        if (hasLoadedDataRef.current) {
+          setErrorMessage(
+            "Couldn't refresh the latest care data. Your saved view is still shown.",
+          );
+          return;
+        }
+
+        const cached = userId ? loadHouseholdSnapshot(userId) : null;
+        if (cached) {
+          setDogs(cached.dogs);
+          setEvents(cached.events);
+          setWeightLogs(cached.weightLogs);
+          hasLoadedDataRef.current = true;
+          setErrorMessage(
+            "You're offline. Showing the last data saved on this device.",
+          );
+        } else {
+          setDataError(
+            "We couldn't load your care history. Check your connection and try again.",
+          );
+        }
+      } finally {
+        if (!isStale()) {
+          setDogsLoading(false);
+          setEventsLoading(false);
+        }
+      }
+    },
+    [],
+  );
+
+  const loadBilling = useCallback(async (activeHousehold: Household) => {
+    setBillingLoading(true);
+    setBillingError(null);
+    try {
+      const summary = await getBillingSummary(activeHousehold.id);
+      setBillingSummary(summary);
+    } catch (error) {
+      console.error("Error loading billing:", error);
+      setBillingSummary(null);
+      setBillingError(
+        error instanceof BillingError
+          ? error.message
+          : "Couldn't load your plan. Please try again.",
+      );
+    } finally {
+      setBillingLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    // Check for existing session using getClaims
-    supabase.auth.getClaims().then(({ data }) => {
-      setClaims(data?.claims ?? null);
-      setIsInitializing(false); // Only set false after first check
-    });
-    // Listen for auth changes
+    if (!isSupabaseConfigured) {
+      setIsInitializing(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function initialiseAuth() {
+      try {
+        const { data, error } = await supabase.auth.getClaims();
+        if (cancelled) return;
+        if (error) {
+          console.error("Error reading session:", error);
+          setClaims(null);
+          return;
+        }
+        const sub = data?.claims?.sub;
+        const nextClaims: SessionClaims | null = sub
+          ? { sub, email: data?.claims?.email ?? undefined }
+          : null;
+        currentUserIdRef.current = nextClaims?.sub ?? null;
+        setClaims(nextClaims);
+      } catch (error) {
+        console.error("Error initialising auth:", error);
+        if (!cancelled) setClaims(null);
+      } finally {
+        if (!cancelled) setIsInitializing(false);
+      }
+    }
+
+    void initialiseAuth();
+
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      supabase.auth.getClaims().then(({ data }) => {
-        setClaims(data?.claims ?? null);
-      });
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setIsPasswordRecovery(true);
+      }
+      if (event === "USER_UPDATED") {
+        setIsPasswordRecovery(false);
+      }
+      if (event === "SIGNED_OUT") {
+        const previousUserId = currentUserIdRef.current;
+        if (previousUserId) clearHouseholdSnapshot(previousUserId);
+        currentUserIdRef.current = null;
+        setClaims(null);
+        resetDomainState();
+        return;
+      }
+
+      const nextClaims: SessionClaims | null = session?.user
+        ? { sub: session.user.id, email: session.user.email ?? undefined }
+        : null;
+      const nextUserId = nextClaims?.sub ?? null;
+      if (nextUserId !== currentUserIdRef.current) {
+        currentUserIdRef.current = nextUserId;
+        if (nextUserId) resetDomainState();
+      }
+      setClaims(nextClaims);
     });
-    return () => subscription.unsubscribe();
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [resetDomainState]);
+
+  useEffect(() => {
+    if (!claims?.sub) {
+      setHousehold(null);
+      setHouseholdLoading(false);
+      return;
+    }
+    void loadHousehold(claims.sub);
+  }, [claims?.sub, loadHousehold]);
+
+  useEffect(() => {
+    if (!household) return;
+    void loadHouseholdData(household, claims?.sub ?? "");
+    void loadBilling(household);
+  }, [household, claims?.sub, loadHouseholdData, loadBilling]);
+
+  useEffect(() => {
+    if (!household) return;
+
+    let refreshTimer: number | undefined;
+    const scheduleRefresh = () => {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        void loadHouseholdData(household, claims?.sub ?? "");
+      }, 400);
+    };
+
+    const unsubscribe = subscribeToHouseholdChanges(scheduleRefresh);
+    const handleFocus = () => {
+      if (document.visibilityState === "visible") scheduleRefresh();
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") scheduleRefresh();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      unsubscribe();
+      window.clearTimeout(refreshTimer);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [household, claims?.sub, loadHouseholdData]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get("checkout");
+    if (checkout === "success") {
+      setNoticeMessage(
+        "Payment received. Your plan will appear in a moment — refresh if it doesn't.",
+      );
+    } else if (checkout === "cancelled") {
+      setNoticeMessage("Checkout cancelled. No charge was made.");
+    }
+
+    if (checkout) {
+      params.delete("checkout");
+      params.delete("session_id");
+      const query = params.toString();
+      window.history.replaceState(
+        {},
+        "",
+        `${window.location.pathname}${query ? `?${query}` : ""}${
+          window.location.hash
+        }`,
+      );
+    }
   }, []);
+
+  useEffect(() => {
+    if (!noticeMessage) return;
+    const timeout = window.setTimeout(() => setNoticeMessage(null), 7000);
+    return () => window.clearTimeout(timeout);
+  }, [noticeMessage]);
 
   function changeScreen(screen: Screen) {
     setCurrentScreen(screen);
   }
 
-  async function getInitialDogs() {
-    if (!household) return;
-    const { data } = await supabase
-      .from("Dogs")
-      .select()
-      .eq("householdId", household.id);
-    setDogs(data ?? []);
-    setDogsLoading(false);
-  }
-
-  async function getDogEvents() {
-    if (!household) return;
-    // Fetch events scoped to this household by joining through the Dogs table
-    const { data: householdDogIds } = await supabase
-      .from("Dogs")
-      .select("dogId")
-      .eq("householdId", household.id);
-
-    const dogIds = (householdDogIds ?? []).map((d) => d.dogId);
-
-    if (dogIds.length === 0) {
-      setEvents([]);
-      setEventsLoading(false);
-      return;
-    }
-
-    const { data } = await supabase
-      .from("DogEvent")
-      .select()
-      .in("dogId", dogIds);
-
-    setEvents(data ?? []);
-    setEventsLoading(false);
-  }
-
-  useEffect(() => {
-    if (claims) {
-      getHousehold(claims.sub);
-    }
-  }, [claims]);
-
-  useEffect(() => {
-    if (claims && household) {
-      getInitialDogs();
-      getDogEvents();
-      getWeightLogs();
-    }
-  }, [claims, household]);
-
-  function handleDataFromChildNewEvent(careEvent: CareEvent) {
-    setEvents((prevEvents) => [...prevEvents, careEvent]);
-    setCurrentScreen("home");
-  }
-
-  function handleDataFromChildNewDog() {
-    getInitialDogs();
-    setCurrentScreen("home");
-  }
-
-  function getDogNameById(dogId: string, dogs: Dog[]): string {
+  function getDogNameById(dogId: string): string {
     if (dogs.length === 0) return "No dog saved to profile";
     const matchingDog = dogs.find((dog) => dog.dogId === dogId);
     return matchingDog ? matchingDog.dogName : "Unknown Dog";
@@ -128,7 +579,6 @@ function App() {
   function getTheDogsLastEventTime(
     dogId: string,
     eventType: EventType,
-    events: CareEvent[],
   ): string | null {
     const matching = events.filter(
       (event) => event.dogId === dogId && event.type === eventType,
@@ -142,36 +592,46 @@ function App() {
     return sorted[0]?.timestamp ?? null;
   }
 
+  function getNumberOfEventsForDog(dogId: string): number {
+    const today = new Date().toDateString();
+    return events.filter(
+      (event) =>
+        event.dogId === dogId &&
+        new Date(event.timestamp).toDateString() === today,
+    ).length;
+  }
+
   function handleViewProfile(dogId: string) {
     setSelectedDogId(dogId);
     changeScreen("dogProfile");
   }
 
-  async function getHousehold(userId: string) {
-    const { data, error } = await supabase
-      .from("HouseholdMember")
-      .select("householdId")
-      .eq("userId", userId)
-      .eq("status", "active")
-      .single();
+  function handleDataFromChildNewEvent(careEvent: CareEvent) {
+    setEvents((previousEvents) => [...previousEvents, careEvent]);
+    setCurrentScreen("home");
+  }
 
-    if (error || !data) {
-      setHousehold(null);
+  function handleAddDogClick() {
+    if (billingLoading) {
+      setNoticeMessage("Checking your plan — please try again in a moment.");
       return;
     }
 
-    const { data: householdData } = await supabase
-      .from("Household")
-      .select()
-      .eq("id", data.householdId)
-      .single();
-
-    setHousehold(householdData ?? null);
+    if (!canAddDog) {
+      setNoticeMessage(
+        "Your free plan includes one dog. Upgrade to add more dogs to your pack.",
+      );
+      changeScreen("pricing");
+      return;
+    }
+    changeScreen("addDog");
   }
 
-  async function getWeightLogs() {
-    const { data } = await supabase.from("WeightLog").select();
-    setWeightLogs(data ?? []);
+  function handleDataFromChildNewDog() {
+    if (household) {
+      void loadHouseholdData(household, claims?.sub ?? "");
+    }
+    setCurrentScreen("home");
   }
 
   async function handleDeleteEvent(eventId: string) {
@@ -182,11 +642,10 @@ function App() {
     if (error) {
       console.error("Error deleting event:", error);
       setErrorMessage("Failed to delete event. Please try again.");
-      setTimeout(() => setErrorMessage(null), 4000);
       return;
     }
-    setEvents((prevEvents) =>
-      prevEvents.filter((event) => event.id !== eventId),
+    setEvents((previousEvents) =>
+      previousEvents.filter((event) => event.id !== eventId),
     );
   }
 
@@ -195,117 +654,339 @@ function App() {
     if (error) {
       console.error("Error deleting dog:", error);
       setErrorMessage("Failed to delete dog. Please try again.");
-      setTimeout(() => setErrorMessage(null), 4000);
       return;
     }
 
-    setDogs((prevDogs) => prevDogs.filter((dog) => dog.dogId !== dogId));
-    setEvents((prevEvents) =>
-      prevEvents.filter((event) => event.dogId !== dogId),
+    setDogs((previousDogs) => previousDogs.filter((dog) => dog.dogId !== dogId));
+    setEvents((previousEvents) =>
+      previousEvents.filter((event) => event.dogId !== dogId),
+    );
+    setWeightLogs((previousWeights) =>
+      previousWeights.filter((weight) => weight.dogId !== dogId),
     );
     setCurrentScreen("home");
   }
 
   async function handleQuickLog(dogId: string, eventType: EventType) {
-    if (!claims) return;
+    if (!claims?.sub) return;
 
-    // For toilet events, show the selection modal instead
     if (eventType === "toilet") {
       setQuickToiletDogId(dogId);
       return;
     }
 
+    const pendingKey = `${dogId}:${eventType}`;
+    if (quickLogPending) return;
+    setQuickLogPending(pendingKey);
+
     const newEvent: CareEvent = {
       id: crypto.randomUUID(),
-      dogId: dogId,
+      dogId,
       type: eventType,
       timestamp: new Date().toISOString(),
       userId: claims.sub,
     };
 
-    const { error } = await supabase.from("DogEvent").insert({
-      id: newEvent.id,
-      dogId: dogId,
-      type: eventType,
-      timestamp: newEvent.timestamp,
-      userId: newEvent.userId,
-      note: null,
-    });
+    try {
+      const { error } = await supabase.from("DogEvent").insert({
+        id: newEvent.id,
+        dogId,
+        type: eventType,
+        timestamp: newEvent.timestamp,
+        userId: newEvent.userId,
+        note: null,
+      });
 
-    if (error) {
+      if (error) throw error;
+      setEvents((previousEvents) => [...previousEvents, newEvent]);
+    } catch (error) {
       console.error("Error inserting quick event:", error);
-      return;
+      setErrorMessage("Couldn't save that event. Please try again.");
+    } finally {
+      setQuickLogPending(null);
     }
-
-    setEvents((prevEvents) => [...prevEvents, newEvent]);
   }
 
   async function handleQuickToilet(
     dogId: string,
     subtype: "pee" | "poo",
-    isAccident: boolean = false,
+    isAccident = false,
   ) {
-    if (!claims) return;
+    if (!claims?.sub) return;
+    if (quickLogPending) return;
+    setQuickLogPending(`${dogId}:toilet`);
 
     const newEvent: CareEvent = {
       id: crypto.randomUUID(),
-      dogId: dogId,
+      dogId,
       type: "toilet",
-      subtype: subtype,
-      isAccident: isAccident,
+      subtype,
+      isAccident,
       timestamp: new Date().toISOString(),
       userId: claims.sub,
     };
 
-    const { error } = await supabase.from("DogEvent").insert({
-      id: newEvent.id,
-      dogId: dogId,
-      type: "toilet",
-      subtype: subtype,
-      isAccident: isAccident,
-      timestamp: newEvent.timestamp,
-      userId: newEvent.userId,
-      note: null,
-    });
+    try {
+      const { error } = await supabase.from("DogEvent").insert({
+        id: newEvent.id,
+        dogId,
+        type: "toilet",
+        subtype,
+        isAccident,
+        timestamp: newEvent.timestamp,
+        userId: newEvent.userId,
+        note: null,
+      });
 
-    if (error) {
+      if (error) throw error;
+      setEvents((previousEvents) => [...previousEvents, newEvent]);
+      setQuickToiletDogId(null);
+    } catch (error) {
       console.error("Error inserting quick toilet event:", error);
-      return;
+      setErrorMessage("Couldn't save that toilet event. Please try again.");
+    } finally {
+      setQuickLogPending(null);
     }
-
-    setEvents((prevEvents) => [...prevEvents, newEvent]);
-    setQuickToiletDogId(null);
   }
 
-  // Show loading screen while initializing
-  if (isInitializing) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-cream">
-        <div className="text-center">
-          <h1 className="text-5xl font-bold font-fraunces text-warm-brown mb-2">
-            Loggi
-          </h1>
-          <p className="text-sm text-text-muted">Loading your pack...</p>
-        </div>
-      </div>
+  async function handleSignOut() {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Error signing out:", error);
+      setErrorMessage("Couldn't sign out. Please try again.");
+      return;
+    }
+    if (currentUserId) clearHouseholdSnapshot(currentUserId);
+    resetDomainState();
+  }
+
+  async function handleCopyInviteCode(): Promise<boolean> {
+    if (!household) return false;
+    const copied = await copyText(household.inviteCode);
+    if (!copied) {
+      setErrorMessage(
+        "Couldn't copy the invite code. Show it and copy it manually.",
+      );
+    }
+    return copied;
+  }
+
+  async function handleRenameHousehold(name: string) {
+    const { error } = await supabase.rpc("rename_household", {
+      p_name: name.trim(),
+    });
+    if (error) {
+      console.error("Error renaming household:", error);
+      setErrorMessage("Couldn't rename the household. Please try again.");
+      return;
+    }
+    setHousehold((current) =>
+      current ? { ...current, name: name.trim() } : current,
     );
   }
 
-  if (!claims) return <AuthScreen />;
+  async function handleRegenerateInviteCode() {
+    const { data, error } = await supabase.rpc("regenerate_invite_code");
+    if (error) {
+      console.error("Error regenerating invite code:", error);
+      setErrorMessage("Couldn't generate a new invite code. Please try again.");
+      return;
+    }
+    if (typeof data === "string" && data.length > 0) {
+      setHousehold((current) =>
+        current ? { ...current, inviteCode: data } : current,
+      );
+      setErrorMessage(null);
+    }
+  }
 
-  if (!household)
+  async function handleRemoveMember(userId: string) {
+    const { error } = await supabase.rpc("remove_household_member", {
+      p_user_id: userId,
+    });
+    if (error) {
+      console.error("Error removing household member:", error);
+      setErrorMessage("Couldn't remove that member. Please try again.");
+      return;
+    }
+    if (household) {
+      void loadHouseholdData(household, claims?.sub ?? "");
+    }
+  }
+
+  async function handleLeaveHousehold() {
+    const { error } = await supabase.rpc("leave_household");
+    if (error) {
+      console.error("Error leaving household:", error);
+      setErrorMessage("Couldn't leave the household. Please try again.");
+      return;
+    }
+    if (currentUserId) clearHouseholdSnapshot(currentUserId);
+    resetDomainState();
+    setHouseholdLoading(false);
+    setCurrentScreen("home");
+  }
+
+  async function handleSelectPlan(plan: BillingPlan) {
+    setBillingLoading(true);
+    setBillingError(null);
+    try {
+      const { url } = await startCheckout(plan);
+      window.location.assign(url);
+    } catch (error) {
+      console.error("Error starting checkout:", error);
+      setBillingError(
+        error instanceof BillingError
+          ? error.message
+          : "Couldn't open checkout. Please try again.",
+      );
+    } finally {
+      setBillingLoading(false);
+    }
+  }
+
+  async function handleManageBilling() {
+    setBillingLoading(true);
+    setBillingError(null);
+    try {
+      const { url } = await openBillingPortal();
+      window.location.assign(url);
+    } catch (error) {
+      console.error("Error opening billing portal:", error);
+      setBillingError(
+        error instanceof BillingError
+          ? error.message
+          : "Couldn't open the billing portal. Please try again.",
+      );
+    } finally {
+      setBillingLoading(false);
+    }
+  }
+
+  function handleExportAllData() {
+    const eventLabels = Object.fromEntries(
+      Object.entries(EVENT_DISPLAY).map(([type, meta]) => [type, meta.label]),
+    ) as Record<string, string>;
+
+    const csv = buildAccountExportCsv(
+      dogs,
+      events,
+      weightLogs,
+      eventLabels,
+    );
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = accountExportFilename();
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleDeleteAccount(): Promise<boolean> {
+    setIsDeletingAccount(true);
+    setErrorMessage(null);
+
+    try {
+      await deleteAccount();
+
+      if (currentUserId) clearHouseholdSnapshot(currentUserId);
+      try {
+        await supabase.auth.signOut({ scope: "local" });
+      } catch (error) {
+        console.warn("Local sign-out after account deletion failed:", error);
+      }
+      setClaims(null);
+      resetDomainState();
+      setCurrentScreen("home");
+      return true;
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      setErrorMessage(
+        error instanceof AccountError
+          ? error.message
+          : "Couldn't delete your account. Please try again.",
+      );
+      return false;
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  }
+
+  const handlePasswordUpdated = useCallback(() => {
+    setIsPasswordRecovery(false);
+  }, []);
+
+  if (!isSupabaseConfigured) {
+    return (
+      <FullScreenMessage
+        title="Configuration needed"
+        message={envErrorMessage}
+        actionLabel="Reload"
+        onAction={() => window.location.reload()}
+      />
+    );
+  }
+
+  if (isInitializing || (claims && householdLoading)) {
+    return <SplashScreen />;
+  }
+
+  if (isPasswordRecovery) {
+    return (
+      <AuthScreen
+        initialView="update_password"
+        onPasswordUpdated={handlePasswordUpdated}
+      />
+    );
+  }
+
+  if (!claims) {
+    return <AuthScreen />;
+  }
+
+  if (householdError && !household) {
+    return (
+      <FullScreenMessage
+        title="Couldn't load your pack"
+        message={householdError}
+        actionLabel="Try again"
+        onAction={() => void loadHousehold(claims.sub)}
+        secondaryLabel="Sign out"
+        onSecondary={() => void handleSignOut()}
+      />
+    );
+  }
+
+  if (!household) {
     return (
       <HouseholdSetupScreen
         userIdInDB={claims.sub}
-        onHouseholdReady={(h) => setHousehold(h)}
+        onHouseholdReady={(readyHousehold) => {
+          setHousehold(readyHousehold);
+          setHouseholdLoading(false);
+        }}
       />
     );
+  }
+
   if (currentScreen === "home") {
-    if (!isHomeReady) {
+    if (dogsLoading || eventsLoading) {
+      return <SplashScreen message="Loading your pack…" />;
+    }
+
+    if (dataError) {
       return (
-        <div className="min-h-screen flex items-center justify-center">
-          <p className="text-sm text-text-muted">Loading your pack...</p>
-        </div>
+        <FullScreenMessage
+          title="Couldn't load your care history"
+          message={dataError}
+          actionLabel="Try again"
+          onAction={() =>
+            void loadHouseholdData(household, claims.sub ?? "")
+          }
+        />
       );
     }
 
@@ -320,31 +1001,15 @@ function App() {
       return eventDate === todayDate;
     });
 
-    const getNumberOfEventsForDog = (dogId: string, events: CareEvent[]) => {
-      return events.filter((event) => event.dogId === dogId).length;
-    };
-
     return (
-      <>
-        {/* Error Toast */}
-        {errorMessage && (
-          <div className="fixed top-4 left-4 right-4 z-50 max-w-md mx-auto">
-            <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl px-4 py-3 text-sm flex items-center justify-between shadow-lg">
-              <span>{errorMessage}</span>
-              <button
-                onClick={() => setErrorMessage(null)}
-                className="ml-3 text-rose-400 hover:text-rose-600 flex-shrink-0"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Header - Updated version */}
-
+      <AppChrome
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+        noticeMessage={noticeMessage}
+        onDismissNotice={() => setNoticeMessage(null)}
+      >
         <div className="mb-8">
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex justify-between items-start gap-3 mb-6">
             <div>
               <p className="text-xs font-medium tracking-widest uppercase text-text-muted mb-1">
                 your pack
@@ -354,20 +1019,24 @@ function App() {
               </h1>
             </div>
 
-            {/* Simplified button group */}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <button
-                onClick={() => {
-                  navigator.clipboard.writeText(household.inviteCode);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
+                type="button"
+                onClick={() => changeScreen("household")}
                 className="px-3 py-2 rounded-lg text-xs font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
               >
-                {copied ? "✓ Copied" : "Share your pack code 🐾"}
+                Household
               </button>
               <button
-                onClick={() => supabase.auth.signOut()}
+                type="button"
+                onClick={() => changeScreen("pricing")}
+                className="px-3 py-2 rounded-lg text-xs font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
+              >
+                {billingSummary?.entitlement.isEntitled ? "Plan" : "Upgrade"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSignOut()}
                 className="px-3 py-2 rounded-lg text-xs font-medium text-text-muted hover:text-warm-brown transition-colors"
               >
                 Log out
@@ -377,7 +1046,7 @@ function App() {
 
           <button
             className="w-full py-3 rounded-xl bg-warm-brown text-white text-sm font-bold hover:opacity-90 transition-opacity"
-            onClick={() => changeScreen("addDog")}
+            onClick={handleAddDogClick}
           >
             + Add a Dog
           </button>
@@ -393,22 +1062,18 @@ function App() {
               const lastFedTimestamp = getTheDogsLastEventTime(
                 dog.dogId,
                 "feed",
-                events,
               );
               const lastWalkTimestamp = getTheDogsLastEventTime(
                 dog.dogId,
                 "walk",
-                events,
               );
               const lastToiletTimestamp = getTheDogsLastEventTime(
                 dog.dogId,
                 "toilet",
-                events,
               );
               const lastMedsTimestamp = getTheDogsLastEventTime(
                 dog.dogId,
                 "meds",
-                events,
               );
 
               return (
@@ -421,10 +1086,7 @@ function App() {
                       ? getTimeAgo(lastFedTimestamp)
                       : "Nothing recorded yet."
                   }
-                  numOfEventsToday={getNumberOfEventsForDog(
-                    dog.dogId,
-                    todaysEvents,
-                  )}
+                  numOfEventsToday={getNumberOfEventsForDog(dog.dogId)}
                   onViewProfile={() => handleViewProfile(dog.dogId)}
                   lastWalkMinutes={
                     lastWalkTimestamp
@@ -441,12 +1103,20 @@ function App() {
                       ? getTimeAgo(lastMedsTimestamp)
                       : "Nothing recorded yet."
                   }
+                  feedUrgency={getCareUrgency(lastFedTimestamp, "feed")}
+                  walkUrgency={getCareUrgency(lastWalkTimestamp, "walk")}
+                  toiletUrgency={getCareUrgency(
+                    lastToiletTimestamp,
+                    "toilet",
+                  )}
+                  medsUrgency={getCareUrgency(lastMedsTimestamp, "meds")}
+                  quickLogPending={quickLogPending}
                   onLogEvent={() => {
                     setSelectedDogId(dog.dogId);
                     changeScreen("logEvent");
                   }}
                   onQuickLog={(eventType) =>
-                    handleQuickLog(dog.dogId, eventType)
+                    void handleQuickLog(dog.dogId, eventType)
                   }
                 />
               );
@@ -454,49 +1124,65 @@ function App() {
           )}
         </div>
 
-        {todaysEvents.length > 0 ? (
-          <div className="rounded-2xl p-5 bg-light-tan">
-            <h2 className="text-lg font-semibold mb-4 text-warm-brown">
-              Today's Events
-            </h2>
-            <ul className="flex flex-col gap-3">
-              {todaysEvents.map((event) => (
-                <li
-                  key={event.id}
-                  className="flex justify-between items-center text-sm py-2 border-b border-warm-brown/15 text-text-dark last:border-b-0"
-                >
-                  <span className="font-medium">
-                    {getDogNameById(event.dogId, dogs)}
-                  </span>
-                  <span className="text-text-muted">
-                    {EVENT_DISPLAY[event.type].label}
-                    {event.type === "toilet" &&
-                      event.subtype &&
-                      ` ${event.subtype === "pee" ? "💧" : event.subtype === "poo" ? "💩" : ""}`}
-                    {event.isAccident && " ⚠️"}
-                  </span>
-                  <span className="text-xs text-text-muted">
-                    {getTimeAgo(event.timestamp)}
-                  </span>
-                  <button
-                    onClick={() => setConfirmDeleteEventId(event.id)}
-                    className="text-xs text-rose-400 hover:text-rose-600 transition-colors ml-2 flex-shrink-0"
+        {dogs.length > 0 ? (
+          todaysEvents.length > 0 ? (
+            <div className="rounded-2xl p-5 bg-light-tan">
+              <h2 className="text-lg font-semibold mb-4 text-warm-brown">
+                Today's Events
+              </h2>
+              <ul className="flex flex-col gap-3">
+                {todaysEvents.map((event) => (
+                  <li
+                    key={event.id}
+                    className="flex justify-between items-center gap-2 text-sm py-2 border-b border-warm-brown/15 text-text-dark last:border-b-0"
                   >
-                    ✕
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+                    <span className="font-medium shrink-0">
+                      {getDogNameById(event.dogId)}
+                    </span>
+                    <span className="text-text-muted flex-1">
+                      {EVENT_DISPLAY[event.type]?.label ?? event.type}
+                      {event.type === "toilet" &&
+                        event.subtype &&
+                        ` ${event.subtype === "pee" ? "💧" : event.subtype === "poo" ? "💩" : ""}`}
+                      {event.isAccident && " ⚠️"}
+                    </span>
+                    <span className="text-xs text-text-muted text-right">
+                      {getMemberLabel(
+                        members,
+                        event.userId,
+                        currentUserId,
+                      )}{" "}
+                      · {getTimeAgo(event.timestamp)}
+                    </span>
+                    {(isHouseholdOwnerUser ||
+                      event.userId === currentUserId) && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteEventId(event.id)}
+                        aria-label="Delete event"
+                        className="text-xs text-rose-400 hover:text-rose-600 transition-colors ml-1 flex-shrink-0"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-sm text-text-muted text-center py-2">
+              No events logged today yet. Tap a dog card to log one.
+            </p>
+          )
         ) : (
           <p className="text-sm text-text-muted text-center py-2">
-            No events logged today yet. Tap a dog card to log one.
+            No dogs added yet. Tap "+ Add a Dog" to get started.
           </p>
         )}
 
-        {/* Feedback button - place at the very end of home screen, before closing </> */}
         <div className="mt-8 pt-6 border-t border-warm-brown/10">
           <button
+            type="button"
             onClick={() => {
               window.open("https://forms.gle/cMtnvK4MEdMrGmyH6", "_blank");
             }}
@@ -504,28 +1190,34 @@ function App() {
           >
             🐛 Report a bug or request a feature
           </button>
+          <button
+            type="button"
+            onClick={() => changeScreen("legal")}
+            className="mt-3 w-full text-center text-xs text-text-muted underline underline-offset-2 hover:text-warm-brown"
+          >
+            Privacy, terms and refunds
+          </button>
+          <button
+            type="button"
+            onClick={() => changeScreen("account")}
+            className="mt-2 w-full text-center text-xs text-text-muted underline underline-offset-2 hover:text-warm-brown"
+          >
+            Account & data
+          </button>
         </div>
 
-        {/* Delete Event Confirmation Modal */}
         {confirmDeleteEventId && (
-          <div
-            className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
-            onClick={() => setConfirmDeleteEventId(null)}
-          >
-            <div
-              className="bg-white rounded-2xl p-6 max-w-sm w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-lg font-bold text-warm-brown mb-2">
-                Delete this event?
-              </h3>
-              <p className="text-sm text-text-muted mb-6">
-                This action cannot be undone.
-              </p>
+          <Modal
+            title="Delete this event?"
+            description="This action cannot be undone."
+            onClose={() => setConfirmDeleteEventId(null)}
+            size="sm"
+            footer={
               <div className="flex gap-3">
                 <button
+                  type="button"
                   onClick={() => {
-                    handleDeleteEvent(confirmDeleteEventId);
+                    void handleDeleteEvent(confirmDeleteEventId);
                     setConfirmDeleteEventId(null);
                   }}
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-rose-500 text-white hover:bg-rose-600 transition-colors"
@@ -533,92 +1225,104 @@ function App() {
                   Delete
                 </button>
                 <button
+                  type="button"
                   onClick={() => setConfirmDeleteEventId(null)}
                   className="flex-1 py-2.5 rounded-xl text-sm font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
                 >
                   Cancel
                 </button>
               </div>
-            </div>
-          </div>
+            }
+          >
+            <p className="text-sm text-text-muted">
+              This removes the care event from the household history.
+            </p>
+          </Modal>
         )}
-
-        {/* Quick Toilet Selection Modal */}
 
         {quickToiletDogId && (
-          <div
-            className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
-            onClick={() => setQuickToiletDogId(null)}
+          <Modal
+            title={`Quick log toilet for ${getDogNameById(quickToiletDogId)}`}
+            description="Choose what happened."
+            onClose={() => setQuickToiletDogId(null)}
+            size="sm"
           >
-            <div
-              className="bg-white rounded-2xl p-6 max-w-sm w-full"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-lg font-bold text-warm-brown mb-4">
-                Quick log toilet for {getDogNameById(quickToiletDogId, dogs)}
-              </h3>
-
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <button
-                  onClick={() => handleQuickToilet(quickToiletDogId, "pee")}
-                  className="py-4 rounded-xl bg-yellow-50 hover:bg-yellow-100 border-2 border-yellow-200 active:scale-95 transition-all"
-                >
-                  <div className="text-3xl mb-1">💧</div>
-                  <div className="text-sm font-semibold text-yellow-800">
-                    Pee
-                  </div>
-                </button>
-
-                <button
-                  onClick={() => handleQuickToilet(quickToiletDogId, "poo")}
-                  className="py-4 rounded-xl bg-yellow-50 hover:bg-yellow-100 border-2 border-yellow-200 active:scale-95 transition-all"
-                >
-                  <div className="text-3xl mb-1">💩</div>
-                  <div className="text-sm font-semibold text-yellow-800">
-                    Poo
-                  </div>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <button
-                  onClick={() =>
-                    handleQuickToilet(quickToiletDogId, "pee", true)
-                  }
-                  className="py-3 rounded-xl bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 active:scale-95 transition-all"
-                >
-                  <div className="text-sm font-semibold text-rose-700">
-                    💧 Accident
-                  </div>
-                </button>
-
-                <button
-                  onClick={() =>
-                    handleQuickToilet(quickToiletDogId, "poo", true)
-                  }
-                  className="py-3 rounded-xl bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 active:scale-95 transition-all"
-                >
-                  <div className="text-sm font-semibold text-rose-700">
-                    💩 Accident
-                  </div>
-                </button>
-              </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <button
+                type="button"
+                onClick={() => void handleQuickToilet(quickToiletDogId, "pee")}
+                disabled={Boolean(quickLogPending)}
+                className="py-4 rounded-xl bg-yellow-50 hover:bg-yellow-100 border-2 border-yellow-200 active:scale-95 transition-all disabled:opacity-50"
+              >
+                <div className="text-3xl mb-1">💧</div>
+                <div className="text-sm font-semibold text-yellow-800">
+                  Pee
+                </div>
+              </button>
 
               <button
-                onClick={() => setQuickToiletDogId(null)}
-                className="w-full py-2.5 rounded-xl text-sm font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
+                type="button"
+                onClick={() => void handleQuickToilet(quickToiletDogId, "poo")}
+                disabled={Boolean(quickLogPending)}
+                className="py-4 rounded-xl bg-yellow-50 hover:bg-yellow-100 border-2 border-yellow-200 active:scale-95 transition-all disabled:opacity-50"
               >
-                Cancel
+                <div className="text-3xl mb-1">💩</div>
+                <div className="text-sm font-semibold text-yellow-800">
+                  Poo
+                </div>
               </button>
             </div>
-          </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <button
+                type="button"
+                onClick={() =>
+                  void handleQuickToilet(quickToiletDogId, "pee", true)
+                }
+                disabled={Boolean(quickLogPending)}
+                className="py-3 rounded-xl bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 active:scale-95 transition-all disabled:opacity-50"
+              >
+                <div className="text-sm font-semibold text-rose-700">
+                  💧 Accident
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void handleQuickToilet(quickToiletDogId, "poo", true)
+                }
+                disabled={Boolean(quickLogPending)}
+                className="py-3 rounded-xl bg-rose-50 hover:bg-rose-100 border-2 border-rose-200 active:scale-95 transition-all disabled:opacity-50"
+              >
+                <div className="text-sm font-semibold text-rose-700">
+                  💩 Accident
+                </div>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setQuickToiletDogId(null)}
+              className="w-full py-2.5 rounded-xl text-sm font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
+            >
+              Cancel
+            </button>
+          </Modal>
         )}
-      </>
+
+      </AppChrome>
     );
-  } else if (currentScreen === "logEvent") {
+  }
+
+  if (currentScreen === "logEvent") {
     return (
-      <>
+      <AppChrome
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+      >
         <button
+          type="button"
           onClick={() => changeScreen("home")}
           className="mb-6 px-4 py-2 rounded-lg bg-warm-brown text-white font-bold"
         >
@@ -629,55 +1333,173 @@ function App() {
           onSubmitEvent={handleDataFromChildNewEvent}
           userIdInDB={claims.sub}
         />
-      </>
+      </AppChrome>
     );
-  } else if (currentScreen === "addDog") {
+  }
+
+  if (currentScreen === "addDog") {
     return (
-      <>
+      <AppChrome
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+      >
         <button
+          type="button"
           onClick={() => changeScreen("home")}
           className="mb-6 px-4 py-2 rounded-lg bg-warm-brown text-white font-bold"
         >
           Home
         </button>
         <RegisterNewDogScreen
-          householdId={household?.id ?? ""}
+          householdId={household.id}
           onSubmitDog={handleDataFromChildNewDog}
         />
-      </>
+      </AppChrome>
     );
-  } else if (currentScreen === "dogProfile") {
+  }
+
+  if (currentScreen === "dogProfile") {
     const selectedDog = dogs.find((dog) => dog.dogId === selectedDogId);
     const selectedDogEvents = events.filter(
       (event) => event.dogId === selectedDogId,
     );
+
     if (!selectedDog) {
-      return <div>Dog not found</div>;
+      return (
+        <FullScreenMessage
+          title="Dog not found"
+          message="This dog may have been removed from the household."
+          actionLabel="Back home"
+          onAction={() => changeScreen("home")}
+        />
+      );
     }
+
     return (
-      <>
+      <AppChrome
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+      >
         <button
+          type="button"
           onClick={() => changeScreen("home")}
           className="flex items-center gap-1.5 text-sm font-medium text-warm-brown mb-6 hover:opacity-70 transition-opacity"
         >
           ← Back
-        </button>{" "}
+        </button>
         <DogProfileScreen
           dog={selectedDog}
           events={selectedDogEvents}
-          weightLogs={weightLogs.filter((w) => w.dogId === selectedDogId)}
-          onSave={getInitialDogs}
-          householdId={household?.id ?? ""}
+          weightLogs={weightLogs.filter(
+            (weight) => weight.dogId === selectedDogId,
+          )}
+          onSave={() =>
+            void loadHouseholdData(household, claims.sub ?? "")
+          }
+          householdId={household.id}
           userIdInDB={claims.sub}
+          isOwner={isHouseholdOwnerUser}
           onDeleteEvent={handleDeleteEvent}
           onDeleteDog={handleDeleteDog}
-          onWeightLogged={getWeightLogs}
+          onWeightLogged={() =>
+            void loadHouseholdData(household, claims.sub ?? "")
+          }
         />
-      </>
+      </AppChrome>
     );
-  } else {
-    return <div>Unknown screen</div>;
   }
+
+  if (currentScreen === "household") {
+    return (
+      <AppChrome
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+      >
+        <HouseholdScreen
+          householdName={household.name}
+          inviteCode={household.inviteCode}
+          currentUserId={currentUserId}
+          isOwner={isHouseholdOwnerUser}
+          members={memberViews}
+          isLoading={false}
+          error={null}
+          onBack={() => changeScreen("home")}
+          onCopyCode={handleCopyInviteCode}
+          onRename={handleRenameHousehold}
+          onRegenerateCode={handleRegenerateInviteCode}
+          onRemoveMember={handleRemoveMember}
+          onLeave={handleLeaveHousehold}
+        />
+      </AppChrome>
+    );
+  }
+
+  if (currentScreen === "pricing") {
+    return (
+      <AppChrome
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+      >
+        <PricingScreen
+          currentPlan={billingSummary?.entitlement.plan ?? null}
+          isEntitled={billingSummary?.entitlement.isEntitled ?? false}
+          isOwner={billingSummary?.isOwner ?? isHouseholdOwnerUser}
+          isLoading={billingLoading}
+          error={billingError}
+          onSelectPlan={(plan) => void handleSelectPlan(plan)}
+          onManageBilling={() => void handleManageBilling()}
+          onRetry={() => void loadBilling(household)}
+          onBack={() => changeScreen("home")}
+        />
+      </AppChrome>
+    );
+  }
+
+  if (currentScreen === "account") {
+    return (
+      <AppChrome
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+      >
+        <AccountScreen
+          email={claims.email ?? ""}
+          householdName={household.name}
+          planLabel={
+            billingSummary?.entitlement.plan
+              ? billingSummary.entitlement.plan.charAt(0).toUpperCase() +
+                billingSummary.entitlement.plan.slice(1)
+              : "Free"
+          }
+          isOwner={isHouseholdOwnerUser}
+          isEntitled={billingSummary?.entitlement.isEntitled ?? false}
+          isDeleting={isDeletingAccount}
+          onExport={handleExportAllData}
+          onDelete={handleDeleteAccount}
+          onBack={() => changeScreen("home")}
+        />
+      </AppChrome>
+    );
+  }
+
+  if (currentScreen === "legal") {
+    return (
+      <AppChrome
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+      >
+        <LegalScreen onBack={() => changeScreen("home")} />
+      </AppChrome>
+    );
+  }
+
+  return (
+    <FullScreenMessage
+      title="Unknown screen"
+      message="Something went wrong while navigating. Go back home and try again."
+      actionLabel="Back home"
+      onAction={() => changeScreen("home")}
+    />
+  );
 }
 
 export default App;

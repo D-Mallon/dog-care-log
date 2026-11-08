@@ -8,7 +8,7 @@
   --dusty-rose: #d4a0a0;
   --light-tan: #f0e0cc;
   --text-dark: #3b2a1a;
-  --text-muted: #9a7f6a;
+  --text-muted: #6f5946;
 }
 
 * {
@@ -42,5 +42,10 @@ h3 {
 #root {
   max-width: 480px;
   margin: 0 auto;
-  padding: 2rem 1.25rem;
+  padding: 2rem 1.25rem calc(2rem + env(safe-area-inset-bottom));
+}
+
+:focus-visible {
+  outline: 2px solid var(--warm-brown);
+  outline-offset: 2px;
 }

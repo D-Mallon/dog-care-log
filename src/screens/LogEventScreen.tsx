@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { CareEvent, EventType } from "../types/core.ts";
 import { supabase } from "../lib/supabase.ts";
+import {
+  fromDateTimeLocalValue,
+  isFutureDateTime,
+  toDateTimeLocalValue,
+} from "../lib/dates.ts";
 
 type LogEventScreenProps = {
   selectedDogId: string | null;
@@ -80,6 +85,24 @@ const EVENT_OPTIONS: {
     border: "#1d4ed8",
     text: "#1d4ed8",
   },
+  {
+    value: "water",
+    label: "Water",
+    emoji: "💧",
+    colour: "#0e7490",
+    bg: "#cffafe",
+    border: "#0e7490",
+    text: "#0e7490",
+  },
+  {
+    value: "grooming",
+    label: "Grooming",
+    emoji: "✂️",
+    colour: "#9a3412",
+    bg: "#ffedd5",
+    border: "#9a3412",
+    text: "#9a3412",
+  },
 ];
 
 const labelClass =
@@ -94,6 +117,10 @@ export default function LogEventScreen(props: LogEventScreenProps) {
   const [isAccident, setIsAccident] = useState<boolean>(false);
   const [userOptionalNote, setUserOptionalNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [eventTimestamp, setEventTimestamp] = useState(() =>
+    toDateTimeLocalValue(new Date()),
+  );
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -102,69 +129,81 @@ export default function LogEventScreen(props: LogEventScreenProps) {
       return;
     }
 
+    const timestamp = fromDateTimeLocalValue(eventTimestamp);
+    if (!timestamp) {
+      setFormError("Choose a valid date and time.");
+      return;
+    }
+    if (isFutureDateTime(eventTimestamp)) {
+      setFormError("Events cannot be logged in the future.");
+      return;
+    }
+
+    setFormError(null);
     setIsSubmitting(true);
 
-    if (selectedEvent === "toilet" && selectedSubtypes.length > 0) {
-      for (const subtype of selectedSubtypes) {
-        const newEvent: CareEvent = {
+    const note = userOptionalNote.trim() || undefined;
+
+    try {
+      if (selectedEvent === "toilet" && selectedSubtypes.length > 0) {
+        const newEvents: CareEvent[] = selectedSubtypes.map((subtype) => ({
           id: crypto.randomUUID(),
           dogId: selectedDogId,
           type: selectedEvent,
-          timestamp: new Date().toISOString(),
+          timestamp,
           userId: props.userIdInDB,
-          note: userOptionalNote,
-          subtype: subtype,
-          isAccident: isAccident,
-        };
+          note,
+          subtype,
+          isAccident,
+        }));
 
-        const { error } = await supabase.from("DogEvent").insert({
-          id: newEvent.id,
-          dogId: selectedDogId,
-          type: selectedEvent,
-          timestamp: newEvent.timestamp,
-          userId: newEvent.userId,
-          note: userOptionalNote || null,
-          subtype: subtype,
-          isAccident: isAccident,
-        });
+        const { error } = await supabase.from("DogEvent").insert(
+          newEvents.map((newEvent) => ({
+            id: newEvent.id,
+            dogId: newEvent.dogId,
+            type: newEvent.type,
+            timestamp: newEvent.timestamp,
+            userId: newEvent.userId,
+            note: newEvent.note ?? null,
+            subtype: newEvent.subtype,
+            isAccident: newEvent.isAccident ?? false,
+          })),
+        );
 
-        if (error) {
-          console.error("Error inserting event into database:", error);
-          setIsSubmitting(false);
-          return;
-        }
+        if (error) throw error;
 
-        props.onSubmitEvent(newEvent);
+        newEvents.forEach((newEvent) => props.onSubmitEvent(newEvent));
+        return;
       }
-      setIsSubmitting(false);
-      return;
-    }
 
-    const newEvent: CareEvent = {
-      id: crypto.randomUUID(),
-      dogId: selectedDogId,
-      type: selectedEvent,
-      timestamp: new Date().toISOString(),
-      userId: props.userIdInDB,
-      note: userOptionalNote,
-    };
+      const newEvent: CareEvent = {
+        id: crypto.randomUUID(),
+        dogId: selectedDogId,
+        type: selectedEvent,
+        timestamp,
+        userId: props.userIdInDB,
+        note,
+      };
 
-    const { error } = await supabase.from("DogEvent").insert({
-      id: newEvent.id,
-      dogId: selectedDogId,
-      type: selectedEvent,
-      timestamp: newEvent.timestamp,
-      userId: newEvent.userId,
-      note: userOptionalNote || null,
-    });
+      const { error } = await supabase.from("DogEvent").insert({
+        id: newEvent.id,
+        dogId: selectedDogId,
+        type: selectedEvent,
+        timestamp: newEvent.timestamp,
+        userId: newEvent.userId,
+        note: newEvent.note ?? null,
+      });
 
-    if (error) {
+      if (error) throw error;
+
+      props.onSubmitEvent(newEvent);
+    } catch (error) {
       console.error("Error inserting event into database:", error);
+      setFormError(
+        "Couldn't save the event. Check your connection and try again.",
+      );
       setIsSubmitting(false);
-      return;
     }
-
-    props.onSubmitEvent(newEvent);
   }
 
   return (
@@ -223,6 +262,33 @@ export default function LogEventScreen(props: LogEventScreenProps) {
             })}
           </div>
         </div>
+
+        <div className="mb-6">
+          <label htmlFor="event-time" className={labelClass}>
+            When did it happen?
+          </label>
+          <input
+            id="event-time"
+            type="datetime-local"
+            value={eventTimestamp}
+            max={toDateTimeLocalValue(new Date())}
+            onChange={(event) => setEventTimestamp(event.target.value)}
+            className="w-full rounded-xl border-2 border-warm-brown/20 bg-cream px-4 py-3 text-sm text-text-dark outline-none focus:border-warm-brown/50"
+          />
+          <p className="mt-1 text-xs text-text-muted">
+            Defaults to now. Change it if you're logging something from
+            earlier.
+          </p>
+        </div>
+
+        {formError && (
+          <div
+            role="alert"
+            className="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
+          >
+            {formError}
+          </div>
+        )}
 
         {selectedEvent === "toilet" && (
           <div className="mb-6">
@@ -320,8 +386,11 @@ export default function LogEventScreen(props: LogEventScreenProps) {
         )}
 
         <div className="mb-8">
-          <label className={labelClass}>Notes (optional)</label>
+          <label htmlFor="event-note" className={labelClass}>
+            Notes (optional)
+          </label>
           <textarea
+            id="event-note"
             value={userOptionalNote}
             onChange={(e) => setUserOptionalNote(e.target.value)}
             placeholder="Anything worth noting..."

@@ -7,20 +7,6 @@ type HouseholdSetupScreenProps = {
   onHouseholdReady: (household: Household) => void;
 };
 
-async function generateUniqueInviteCode(supabase: any): Promise<string> {
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    const { data } = await supabase
-      .from("Household")
-      .select("id")
-      .eq("inviteCode", code)
-      .maybeSingle();
-    if (!data) return code;
-  }
-  // Fallback: extremely unlikely to reach here, but just in case
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
-
 export default function HouseholdSetupScreen(props: HouseholdSetupScreenProps) {
   const [mode, setMode] = useState<"choose" | "create" | "join">("choose");
   const [householdName, setHouseholdName] = useState("");
@@ -33,39 +19,22 @@ export default function HouseholdSetupScreen(props: HouseholdSetupScreenProps) {
     setIsSubmitting(true);
     setError(null);
 
-    const newHousehold: Household = {
-      id: crypto.randomUUID(),
-      name: householdName,
-      inviteCode: await generateUniqueInviteCode(supabase),
-      createdBy: props.userIdInDB,
-    };
+    const { data, error: createError } = await supabase.rpc(
+      "create_household",
+      { p_name: householdName.trim() },
+    );
 
-    const { error: householdError } = await supabase
-      .from("Household")
-      .insert(newHousehold);
-
-    if (householdError) {
-      setError("Failed to create household. Please try again.");
+    if (createError || !data) {
+      console.error("Error creating household:", createError);
+      setError(
+        createError?.message ??
+          "Failed to create household. Please try again.",
+      );
       setIsSubmitting(false);
       return;
     }
 
-    const { error: memberError } = await supabase
-      .from("HouseholdMember")
-      .insert({
-        householdId: newHousehold.id,
-        userId: props.userIdInDB,
-        role: "owner",
-        status: "active",
-      });
-
-    if (memberError) {
-      setError("Failed to create membership. Please try again.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    props.onHouseholdReady(newHousehold);
+    props.onHouseholdReady(data as Household);
   }
 
   async function handleJoin(event: React.FormEvent<HTMLFormElement>) {
@@ -73,29 +42,16 @@ export default function HouseholdSetupScreen(props: HouseholdSetupScreenProps) {
     setIsSubmitting(true);
     setError(null);
 
-    const { data, error: lookupError } = await supabase
-      .from("Household")
-      .select()
-      .eq("inviteCode", inviteCode.toUpperCase())
-      .single();
+    const { data, error: joinError } = await supabase.rpc("join_household", {
+      p_code: inviteCode.trim().toUpperCase(),
+    });
 
-    if (lookupError || !data) {
-      setError("Invite code not found. Please check and try again.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    const { error: memberError } = await supabase
-      .from("HouseholdMember")
-      .insert({
-        householdId: data.id,
-        userId: props.userIdInDB,
-        role: "member",
-        status: "active",
-      });
-
-    if (memberError) {
-      setError("Failed to join household. Please try again.");
+    if (joinError || !data) {
+      console.error("Error joining household:", joinError);
+      setError(
+        joinError?.message ??
+          "Invite code not found. Please check and try again.",
+      );
       setIsSubmitting(false);
       return;
     }
@@ -150,11 +106,13 @@ export default function HouseholdSetupScreen(props: HouseholdSetupScreenProps) {
 
         <form onSubmit={handleCreate}>
           <div className="mb-6">
-            <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
+            <label htmlFor="household-create-name" className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
               Household name
             </label>
             <input
+              id="household-create-name"
               type="text"
+              maxLength={80}
               placeholder="e.g. The Murphy Family"
               value={householdName}
               onChange={(e) => setHouseholdName(e.target.value)}
@@ -199,10 +157,11 @@ export default function HouseholdSetupScreen(props: HouseholdSetupScreenProps) {
 
       <form onSubmit={handleJoin}>
         <div className="mb-6">
-          <label className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
+          <label htmlFor="household-join-code" className="block text-xs font-semibold text-text-muted uppercase tracking-wider mb-1.5">
             Invite code
           </label>
           <input
+            id="household-join-code"
             type="text"
             placeholder="e.g. X7K2NP"
             value={inviteCode}

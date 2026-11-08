@@ -1,4 +1,13 @@
-export type EventType = "feed" | "walk" | "toilet" | "meds" | "sick" | "nap_time" | "play_time";
+export type EventType =
+  | "feed"
+  | "walk"
+  | "toilet"
+  | "meds"
+  | "sick"
+  | "nap_time"
+  | "play_time"
+  | "water"
+  | "grooming";
 
 export interface Household {
   id: string;
@@ -14,12 +23,14 @@ export interface HouseholdMember {
   role: "owner" | "member";
   status: "active" | "pending";
   joinedAt?: string;
+  displayName?: string;
 }
 
 export interface Dog {
   dogId: string;
   dogName: string;
   householdId: string;
+  breed?: string;
   age?: number;
   weight?: number;
   notes?: string;
@@ -31,6 +42,7 @@ export interface WeightLog {
   dogId: string;
   weight: number;
   recordedAt: string;
+  userId?: string;
 }
 
 export interface CareEvent {
