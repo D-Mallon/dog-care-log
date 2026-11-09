@@ -750,3 +750,5 @@ changes; this list is the contract for any remaining screens and for review.)
 10. **Billing:** use the shared billing types and Agent B's Edge Functions.
     `household_is_entitled(householdId)` is the read-only entitlement check. Do
     not attempt client-side billing writes.
+
+- `20261110000100_insight_feedback.sql` — owner-confirmed insight feedback labels, household RLS and realtime publication.
