@@ -8,23 +8,40 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      includeAssets: ["favicon.ico", "apple-touch-icon.png", "icon-192.png"],
       manifest: {
+        id: "/",
         name: "Loggi",
         short_name: "Loggi",
-        description: "Track care events for your dogs",
+        description:
+          "A shared care log for dog households — feeding, walks, toilet breaks, medication and more.",
+        start_url: "/",
+        scope: "/",
+        display: "standalone",
+        orientation: "portrait",
+        lang: "en",
+        dir: "ltr",
+        categories: ["lifestyle", "health", "productivity"],
         theme_color: "#7c5c3e",
         background_color: "#fdf6ee",
-        display: "standalone",
         icons: [
           {
             src: "/icon-192.png",
             sizes: "192x192",
             type: "image/png",
+            purpose: "any",
           },
           {
             src: "/icon-512.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
           },
         ],
       },

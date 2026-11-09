@@ -1,0 +1,24 @@
+# Supabase CLI configuration for local development and function deploys.
+#
+# The Stripe webhook is called by Stripe, which cannot present a Supabase JWT.
+# JWT verification must therefore be disabled for that function; authenticity
+# is enforced inside the function by verifying `stripe-signature` against the
+# raw request body. The user-facing billing functions keep the default JWT
+# verification enabled.
+#
+# If the project is linked/deployed without this file, deploy the webhook with
+# `supabase functions deploy stripe-webhook --no-verify-jwt` instead.
+
+project_id = "dog-care-log"
+
+[functions.create-checkout-session]
+verify_jwt = true
+
+[functions.create-portal-session]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = true

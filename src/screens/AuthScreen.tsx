@@ -1,8 +1,52 @@
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "../lib/supabase.ts";
+import { env } from "../lib/env.ts";
+import { useEffect, useState } from "react";
 
-export default function AuthScreen() {
+type AuthView =
+  | "sign_in"
+  | "sign_up"
+  | "forgotten_password"
+  | "update_password";
+
+type AuthScreenProps = {
+  initialView?: AuthView;
+  onPasswordUpdated?: () => void;
+};
+
+export default function AuthScreen({
+  initialView = "sign_in",
+  onPasswordUpdated,
+}: AuthScreenProps) {
+  const [view, setView] = useState<AuthView>(initialView);
+  const redirectTo =
+    env.appUrl ||
+    (typeof window !== "undefined" ? window.location.origin : undefined);
+
+  useEffect(() => {
+    setView(initialView);
+  }, [initialView]);
+
+  useEffect(() => {
+    // Supabase emits PASSWORD_RECOVERY while processing the reset redirect.
+    // App also inspects the URL on mount because the event can fire before
+    // this component exists.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setView("update_password");
+      }
+      if (event === "USER_UPDATED") {
+        setView("sign_in");
+        onPasswordUpdated?.();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [onPasswordUpdated]);
+
   return (
     <div className="min-h-screen bg-cream bg-auth-pattern flex flex-col items-center justify-center p-8">
       <div className="text-center mb-10">
@@ -23,6 +67,8 @@ export default function AuthScreen() {
       <div className="w-full max-w-md bg-white rounded-3xl p-8 border border-warm-brown/10 shadow-card">
         <Auth
           supabaseClient={supabase}
+          view={view}
+          redirectTo={redirectTo}
           appearance={{
             theme: ThemeSupa,
             variables: {
@@ -36,8 +82,8 @@ export default function AuthScreen() {
                   inputBorderFocus: "#7c5c3e",
                   inputBorderHover: "#a0785a",
                   inputText: "#3b2a1a",
-                  inputLabelText: "#9a7f6a",
-                  inputPlaceholder: "#c4a882",
+                  inputLabelText: "#6f5946",
+                  inputPlaceholder: "#8a6f58",
                 },
                 radii: {
                   borderRadiusButton: "12px",
@@ -56,6 +102,19 @@ export default function AuthScreen() {
           providers={[]}
         />
       </div>
+
+      {view === "update_password" && (
+        <button
+          type="button"
+          onClick={() => {
+            setView("sign_in");
+            onPasswordUpdated?.();
+          }}
+          className="mt-5 text-xs font-medium text-text-muted underline underline-offset-2 hover:text-warm-brown"
+        >
+          Cancel password update
+        </button>
+      )}
     </div>
   );
 }

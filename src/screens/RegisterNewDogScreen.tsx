@@ -14,11 +14,15 @@ const labelClass =
 
 export default function RegisterNewDogScreen(props: AddDogScreenProps) {
   const [newDogName, setNewDogName] = useState<string>("");
+  const [newDogBreed, setNewDogBreed] = useState<string>("");
   const [newDogAge, setNewDogAge] = useState<number | null>(null);
   const [newDogWeight, setNewDogWeight] = useState<number | null>(null);
+  const [newDogNotes, setNewDogNotes] = useState<string>("");
   const [newDogImageFile, setNewDogImageFile] = useState<File | null>(null);
+
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -34,58 +38,83 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
     event.preventDefault();
 
     if (!newDogName.trim()) {
-      alert("Please enter your dog's name");
+      setSubmitError("Please enter your dog's name.");
       return;
     }
 
     setIsSubmitting(true);
-    let newDogImageUrl = "";
+    setSubmitError(null);
 
-    if (newDogImageFile) {
-      const filePath = `${props.householdId}/${crypto.randomUUID()}`;
+    try {
+      let newDogImageUrl = "";
 
-      const { error } = await supabase.storage
-        .from("dog-images")
-        .upload(filePath, newDogImageFile);
+      if (newDogImageFile) {
+        const filePath = `${props.householdId}/${crypto.randomUUID()}`;
 
-      if (error) {
-        console.error("Error uploading image:", error);
-        setIsSubmitting(false);
-        return;
+        const { error: uploadError } = await supabase.storage
+          .from("dog-images")
+          .upload(filePath, newDogImageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage
+          .from("dog-images")
+          .getPublicUrl(filePath);
+
+        newDogImageUrl = data.publicUrl;
       }
 
-      const { data } = supabase.storage
-        .from("dog-images")
-        .getPublicUrl(filePath);
+      const newDog: Dog = {
+        dogId: crypto.randomUUID(),
+        dogName: newDogName.trim(),
+        breed: newDogBreed.trim() || undefined,
+        dogImage: newDogImageUrl,
+        age: newDogAge ?? undefined,
+        weight: newDogWeight ?? undefined,
+        notes: newDogNotes.trim() || undefined,
+        householdId: props.householdId,
+      };
 
-      newDogImageUrl = data.publicUrl;
-    }
+      const { error: dogError } = await supabase.from("Dogs").insert({
+        householdId: props.householdId,
+        dogId: newDog.dogId,
+        dogName: newDog.dogName,
+        breed: newDogBreed.trim() || null,
+        dogImage: newDogImageUrl,
+        age: newDogAge,
+        weight: newDogWeight,
+        notes: newDogNotes.trim() || null,
+      });
 
-    const newDog: Dog = {
-      dogId: crypto.randomUUID(),
-      dogName: newDogName,
-      dogImage: newDogImageUrl,
-      age: newDogAge ?? undefined,
-      weight: newDogWeight ?? undefined,
-      householdId: props.householdId,
-    };
+      if (dogError) throw dogError;
 
-    const { error } = await supabase.from("Dogs").insert({
-      householdId: props.householdId,
-      dogId: newDog.dogId,
-      dogName: newDog.dogName,
-      dogImage: newDogImageUrl,
-      age: newDogAge,
-      weight: newDogWeight,
-    });
+      if (newDogWeight !== null) {
+        const { error: weightError } = await supabase
+          .from("WeightLog")
+          .insert({
+            id: crypto.randomUUID(),
+            dogId: newDog.dogId,
+            weight: newDogWeight,
+            recordedAt: new Date().toISOString(),
+          });
 
-    if (error) {
-      console.error("Error inserting dog:", error);
+        if (weightError) {
+          // The dog itself was created; don't block navigation on the initial
+          // weight history row. The owner can add a weight from the profile.
+          console.error("Error creating initial weight log:", weightError);
+        }
+      }
+
+      props.onSubmitDog(newDog);
+    } catch (error) {
+      console.error("Error adding dog:", error);
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Couldn't add your dog. Please try again.",
+      );
       setIsSubmitting(false);
-      return;
     }
-
-    props.onSubmitDog(newDog);
   }
 
   return (
@@ -132,19 +161,39 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
         </div>
 
         <div className="mb-5">
-          <label className={labelClass}>Dog's name *</label>
+          <label htmlFor="dog-name" className={labelClass}>
+            Dog's name *
+          </label>
           <input
+            id="dog-name"
             type="text"
             placeholder="e.g. Bear K"
             className={inputClass}
             onChange={(e) => setNewDogName(e.target.value)}
+            required
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="mb-5">
+          <label htmlFor="dog-breed" className={labelClass}>
+            Breed
+          </label>
+          <input
+            id="dog-breed"
+            type="text"
+            placeholder="e.g. Golden Retriever"
+            className={inputClass}
+            onChange={(e) => setNewDogBreed(e.target.value)}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mb-5">
           <div>
-            <label className={labelClass}>Age (years)</label>
+            <label htmlFor="dog-age" className={labelClass}>
+              Age (years)
+            </label>
             <input
+              id="dog-age"
               type="number"
               min="0"
               max="30"
@@ -156,11 +205,15 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
             />
           </div>
           <div>
-            <label className={labelClass}>Weight (kg)</label>
+            <label htmlFor="dog-weight" className={labelClass}>
+              Weight (kg)
+            </label>
             <input
+              id="dog-weight"
               type="number"
-              min="0"
+              min="0.1"
               max="200"
+              step="0.1"
               placeholder="e.g. 28"
               className={inputClass}
               onChange={(e) =>
@@ -169,6 +222,27 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
             />
           </div>
         </div>
+
+        <div className="mb-6">
+          <label htmlFor="dog-notes" className={labelClass}>
+            Notes (optional)
+          </label>
+          <textarea
+            id="dog-notes"
+            rows={3}
+            maxLength={500}
+            placeholder="Allergies, vet details, quirks…"
+            value={newDogNotes}
+            onChange={(e) => setNewDogNotes(e.target.value)}
+            className={`${inputClass} resize-none`}
+          />
+        </div>
+
+        {submitError && (
+          <p role="alert" className="mb-4 text-sm text-rose-700">
+            {submitError}
+          </p>
+        )}
 
         <button
           type="submit"
