@@ -552,7 +552,7 @@ Still required before production:
 
 ## 14. Post-v0.1.0 product roadmap — retention and differentiation
 
-Status: Phases A–E implemented on `feat/retention-roadmap` (2026-11-09). Production remains v0.1.0 until the feature branch is merged and verified. Email reminder delivery is deliberately deferred until SMTP is configured; the in-app schedule/today-plan loop is live in the feature branch.
+Status: Phases A–E implemented on `feat/retention-roadmap` (2026-11-09). Production deployed as **v0.2.0** on `main` (tag `v0.2.0`, commit `28bf15e`) after CI, migrations and a production smoke test passed. Email reminder delivery is deliberately deferred until SMTP is configured; the in-app schedule/today-plan loop is live in the feature branch.
 
 ### Product thesis
 
