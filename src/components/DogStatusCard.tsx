@@ -82,11 +82,20 @@ export default function DogStatusCard(props: DogStatusCardProps) {
           onClick={props.onViewProfile}
           className="flex items-center gap-4 text-left rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-warm-brown/40"
         >
-          <img
-            src={props.dogImage}
-            alt={props.dogName}
-            className="w-14 h-14 rounded-2xl object-cover border-2 border-warm-brown/15"
-          />
+          {props.dogImage ? (
+            <img
+              src={props.dogImage}
+              alt={props.dogName}
+              className="w-14 h-14 rounded-2xl object-cover border-2 border-warm-brown/15"
+            />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-warm-brown/15 bg-light-tan text-2xl"
+            >
+              🐾
+            </span>
+          )}
           <span>
             <span className="block text-xl font-bold font-fraunces leading-tight text-warm-brown">
               {props.dogName}
