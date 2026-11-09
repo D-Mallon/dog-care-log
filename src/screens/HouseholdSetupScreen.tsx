@@ -28,7 +28,7 @@ export default function HouseholdSetupScreen(props: HouseholdSetupScreenProps) {
       console.error("Error creating household:", createError);
       setError(
         createError?.message ??
-          "Failed to create household. Please try again.",
+          "We couldn't confirm the household was created. Reload the page and try again.",
       );
       setIsSubmitting(false);
       return;
@@ -122,7 +122,20 @@ export default function HouseholdSetupScreen(props: HouseholdSetupScreenProps) {
             />
           </div>
 
-          {error && <p className="text-sm text-rose-600 mb-4">{error}</p>}
+          {error && (
+            <div className="mb-4 rounded-xl bg-rose-50 p-3">
+              <p className="text-sm text-rose-600">{error}</p>
+              {error.startsWith("We couldn't confirm") && (
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="mt-2 text-sm font-semibold text-warm-brown underline underline-offset-2"
+                >
+                  Reload the page
+                </button>
+              )}
+            </div>
+          )}
 
           <button
             type="submit"
