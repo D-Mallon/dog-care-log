@@ -720,7 +720,7 @@ Remaining before calling the whole roadmap complete: SMTP-backed email reminders
 
 ## 15. ML Phase 1 — explainable baseline and labels
 
-Status: implemented on `feat/ml-baseline`; production release after CI and QA.
+Status: implemented and deployed as **v0.3.0** on `main` (merge `1c8b4fc`) after CI, migrations and production QA.
 
 ### What is included
 
