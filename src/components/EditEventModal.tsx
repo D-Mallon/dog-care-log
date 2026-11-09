@@ -1,5 +1,11 @@
 import { useState } from "react";
-import type { CareEvent, EventType } from "../types/core.ts";
+import type {
+  CareEvent,
+  EventType,
+  PottyCue,
+  PottyLocation,
+  PottyOutcome,
+} from "../types/core.ts";
 import { supabase } from "../lib/supabase.ts";
 import { EVENT_OPTIONS } from "../lib/eventMeta.ts";
 import {
@@ -30,7 +36,15 @@ export default function EditEventModal({
   const [subtype, setSubtype] = useState<ToiletSubtype>(
     event.subtype ?? "",
   );
-  const [isAccident, setIsAccident] = useState(Boolean(event.isAccident));
+  const [pottyOutcome, setPottyOutcome] = useState<PottyOutcome>(
+    event.pottyOutcome ?? (event.isAccident ? "accident" : "success"),
+  );
+  const [pottyLocation, setPottyLocation] = useState<PottyLocation | "">(
+    event.pottyLocation ?? "",
+  );
+  const [pottyCue, setPottyCue] = useState<PottyCue | "">(
+    event.pottyCue ?? "",
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,7 +71,10 @@ export default function EditEventModal({
         timestamp: isoTimestamp,
         note: note.trim() || null,
         subtype: type === "toilet" && subtype ? subtype : null,
-        isAccident: type === "toilet" ? isAccident : false,
+        isAccident: type === "toilet" && pottyOutcome === "accident",
+        pottyOutcome: type === "toilet" ? pottyOutcome : null,
+        pottyLocation: type === "toilet" ? pottyLocation || null : null,
+        pottyCue: type === "toilet" ? pottyCue || null : null,
       })
       .eq("id", event.id);
 
@@ -162,17 +179,86 @@ export default function EditEventModal({
                 <option value="other">Other</option>
               </select>
             </div>
-            <label className="flex items-end gap-2 pb-3 text-sm text-text-dark">
-              <input
-                type="checkbox"
-                checked={isAccident}
-                onChange={(inputEvent) =>
-                  setIsAccident(inputEvent.target.checked)
-                }
-                className="h-4 w-4 rounded border-gray-300 text-warm-brown focus:ring-warm-brown"
-              />
-              Accident
-            </label>
+            <div className="space-y-3">
+              <div>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  Outcome
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPottyOutcome("success")}
+                    aria-pressed={pottyOutcome === "success"}
+                    className={`rounded-lg border px-2 py-2 text-xs font-semibold ${
+                      pottyOutcome === "success"
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                        : "border-warm-brown/20 text-text-dark"
+                    }`}
+                  >
+                    ✅ Success
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPottyOutcome("accident")}
+                    aria-pressed={pottyOutcome === "accident"}
+                    className={`rounded-lg border px-2 py-2 text-xs font-semibold ${
+                      pottyOutcome === "accident"
+                        ? "border-rose-300 bg-rose-50 text-rose-800"
+                        : "border-warm-brown/20 text-text-dark"
+                    }`}
+                  >
+                    ⚠️ Accident
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label
+                  htmlFor="edit-event-location"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-muted"
+                >
+                  Where
+                </label>
+                <select
+                  id="edit-event-location"
+                  value={pottyLocation}
+                  onChange={(selectEvent) =>
+                    setPottyLocation(
+                      selectEvent.target.value as PottyLocation | "",
+                    )
+                  }
+                  className="w-full rounded-lg border border-warm-brown/20 bg-cream px-2 py-2 text-xs text-text-dark"
+                >
+                  <option value="">Not specified</option>
+                  <option value="outside">Outside</option>
+                  <option value="garden">Garden</option>
+                  <option value="pad">Puppy pad</option>
+                  <option value="indoor">Indoors</option>
+                  <option value="crate">Crate</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="edit-event-cue"
+                  className="mb-1 block text-xs font-semibold uppercase tracking-wide text-text-muted"
+                >
+                  Cue
+                </label>
+                <select
+                  id="edit-event-cue"
+                  value={pottyCue}
+                  onChange={(selectEvent) =>
+                    setPottyCue(selectEvent.target.value as PottyCue | "")
+                  }
+                  className="w-full rounded-lg border border-warm-brown/20 bg-cream px-2 py-2 text-xs text-text-dark"
+                >
+                  <option value="">Not specified</option>
+                  <option value="asked">Asked to go</option>
+                  <option value="unprompted">Went unprompted</option>
+                  <option value="none">No clear cue</option>
+                </select>
+              </div>
+            </div>
           </div>
         )}
 

@@ -32,6 +32,10 @@ Apply in filename order. The Supabase CLI does this automatically.
 | 2 | [`migrations/20261108000200_billing_schema.sql`](./migrations/20261108000200_billing_schema.sql) | `BillingCustomer`, `Subscription`, `StripeEvent`; `updatedAt` trigger; `household_is_entitled()`; billing RLS |
 | 3 | [`migrations/20261108000300_households.sql`](./migrations/20261108000300_households.sql) | Household RPCs; invite-code generation; `dog-images` bucket and storage policies; realtime publication |
 | 4 | [`migrations/20261108000400_free_plan_limits.sql`](./migrations/20261108000400_free_plan_limits.sql) | Free-plan one-dog limit enforced by the `Dogs` INSERT RLS policy |
+| 5 | [`migrations/20261109000100_dog_profile.sql`](./migrations/20261109000100_dog_profile.sql) | Optional detailed `Dogs` profile: `breedId`, sex/neuter/DOB, adult weight, size, activity, feeding, medical and training fields |
+| 6 | [`migrations/20261109000200_potty_outcomes.sql`](./migrations/20261109000200_potty_outcomes.sql) | Structured `DogEvent` potty outcome/location/cue with toilet-only checks; narrow `isAccident` backfill; potty-summary index |
+| 7 | [`migrations/20261109000300_schedules.sql`](./migrations/20261109000300_schedules.sql) | `CareSchedule` and `CareTaskCompletion`; `is_dog_in_household()`/`is_schedule_member()` helpers; RLS and realtime |
+| 8 | [`migrations/20261109000400_event_social.sql`](./migrations/20261109000400_event_social.sql) | `EventReaction` and `EventComment`; `is_event_member()`/`is_event_owner()` helpers; immutable-comment RLS and realtime |
 
 The migrations are intended for an **empty schema**. They do not drop tables
 and they do not migrate rows from the legacy schema. The paused dev project
@@ -562,9 +566,10 @@ household should receive the rows. Test with two browser profiles: member A
 logs a feed event, member B sees it without refreshing. A non-member should see
 nothing even if they subscribe to the table.
 
-`DogEvent` and `WeightLog` are the only tables added to the publication. If you
-add another realtime table later, add it in a new migration with the same
-idempotent `pg_publication_tables` check.
+`DogEvent`, `WeightLog`, `CareSchedule`, `CareTaskCompletion`, `EventReaction`
+and `EventComment` are in the publication. If you add another realtime table
+later, add it in a new migration with the same idempotent
+`pg_publication_tables` check.
 
 ---
 

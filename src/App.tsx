@@ -11,13 +11,21 @@ import LegalScreen from "./screens/LegalScreen.tsx";
 import AccountScreen from "./screens/AccountScreen.tsx";
 import ErrorToast from "./components/ErrorToast.tsx";
 import NoticeToast from "./components/NoticeToast.tsx";
+import EventReactions from "./components/EventReactions.tsx";
+import TodayPlan from "./components/TodayPlan.tsx";
+import WeeklyReport from "./components/WeeklyReport.tsx";
+import SchedulesScreen from "./screens/SchedulesScreen.tsx";
 import Modal from "./components/Modal.tsx";
 import OfflineBanner from "./components/OfflineBanner.tsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type {
   CareEvent,
+  CareSchedule,
+  CareTaskCompletion,
   Dog,
+  EventComment,
+  EventReaction,
   EventType,
   Household,
   HouseholdMember,
@@ -36,11 +44,28 @@ import {
 } from "./lib/offlineCache.ts";
 import { copyText } from "./lib/clipboard.ts";
 import { canAddAnotherDog } from "./lib/planLimits.ts";
+import { buildWeeklyReport } from "./lib/weeklyReport.ts";
 import { AccountError, deleteAccount } from "./lib/account.ts";
 import {
   accountExportFilename,
   buildAccountExportCsv,
 } from "./lib/accountExport.ts";
+import {
+  addComment,
+  deleteComment,
+  listEventSocial,
+  toggleReaction,
+} from "./lib/eventSocialApi.ts";
+import {
+  listCompletions,
+  listSchedules,
+  setTaskCompletion,
+} from "./lib/scheduleApi.ts";
+import {
+  getTodayPlan,
+  toLocalDateKey,
+  type TodayTask,
+} from "./lib/schedules.ts";
 import {
   getMemberLabel,
   isHouseholdOwner,
@@ -68,7 +93,9 @@ type Screen =
   | "household"
   | "pricing"
   | "legal"
-  | "account";
+  | "account"
+  | "weeklyReport"
+  | "schedules";
 
 function detectRecoveryRedirect(): boolean {
   if (typeof window === "undefined") return false;
@@ -169,6 +196,10 @@ function App() {
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [events, setEvents] = useState<CareEvent[]>([]);
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
+  const [reactions, setReactions] = useState<EventReaction[]>([]);
+  const [comments, setComments] = useState<EventComment[]>([]);
+  const [schedules, setSchedules] = useState<CareSchedule[]>([]);
+  const [completions, setCompletions] = useState<CareTaskCompletion[]>([]);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [selectedDogId, setSelectedDogId] = useState<string | null>(null);
   const [claims, setClaims] = useState<SessionClaims | null>(null);
@@ -228,6 +259,10 @@ function App() {
     setDogs([]);
     setEvents([]);
     setWeightLogs([]);
+    setReactions([]);
+    setComments([]);
+    setSchedules([]);
+    setCompletions([]);
     setMembers([]);
     setHousehold(null);
     setSelectedDogId(null);
@@ -338,6 +373,29 @@ function App() {
         } else {
           setEvents([]);
           setWeightLogs([]);
+        }
+
+        const eventIds = nextEvents.map((event) => event.id);
+        const social = await listEventSocial(eventIds);
+        setReactions(social.reactions);
+        setComments(social.comments);
+
+        const nextSchedules = await listSchedules(activeHousehold.id);
+        setSchedules(nextSchedules);
+        if (nextSchedules.length > 0) {
+          const today = new Date();
+          const weekAgo = new Date(today);
+          weekAgo.setDate(today.getDate() - 7);
+          const dateKey = (date: Date) =>
+            `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+          const nextCompletions = await listCompletions(
+            nextSchedules.map((schedule) => schedule.id),
+            dateKey(weekAgo),
+            dateKey(today),
+          );
+          setCompletions(nextCompletions);
+        } else {
+          setCompletions([]);
         }
 
         const { data: memberData, error: memberError } = await supabase
@@ -647,6 +705,12 @@ function App() {
     setEvents((previousEvents) =>
       previousEvents.filter((event) => event.id !== eventId),
     );
+    setReactions((previous) =>
+      previous.filter((reaction) => reaction.eventId !== eventId),
+    );
+    setComments((previous) =>
+      previous.filter((comment) => comment.eventId !== eventId),
+    );
   }
 
   async function handleDeleteDog(dogId: string) {
@@ -658,8 +722,17 @@ function App() {
     }
 
     setDogs((previousDogs) => previousDogs.filter((dog) => dog.dogId !== dogId));
+    const removedEventIds = new Set(
+      events.filter((event) => event.dogId === dogId).map((event) => event.id),
+    );
     setEvents((previousEvents) =>
       previousEvents.filter((event) => event.dogId !== dogId),
+    );
+    setReactions((previous) =>
+      previous.filter((reaction) => !removedEventIds.has(reaction.eventId)),
+    );
+    setComments((previous) =>
+      previous.filter((comment) => !removedEventIds.has(comment.eventId)),
     );
     setWeightLogs((previousWeights) =>
       previousWeights.filter((weight) => weight.dogId !== dogId),
@@ -722,6 +795,7 @@ function App() {
       type: "toilet",
       subtype,
       isAccident,
+      pottyOutcome: isAccident ? "accident" : "success",
       timestamp: new Date().toISOString(),
       userId: claims.sub,
     };
@@ -733,6 +807,7 @@ function App() {
         type: "toilet",
         subtype,
         isAccident,
+        pottyOutcome: newEvent.pottyOutcome ?? null,
         timestamp: newEvent.timestamp,
         userId: newEvent.userId,
         note: null,
@@ -912,6 +987,111 @@ function App() {
       return false;
     } finally {
       setIsDeletingAccount(false);
+    }
+  }
+
+  async function handleToggleTask(task: TodayTask, done: boolean) {
+    if (!currentUserId) return;
+    const dueDate = toLocalDateKey(new Date(task.dueAt));
+
+    try {
+      await setTaskCompletion(
+        task.schedule.id,
+        dueDate,
+        done,
+        currentUserId,
+      );
+      if (done) {
+        setCompletions((previous) => [
+          ...previous.filter(
+            (completion) =>
+              !(
+                completion.scheduleId === task.schedule.id &&
+                completion.dueDate === dueDate
+              ),
+          ),
+          {
+            id: crypto.randomUUID(),
+            scheduleId: task.schedule.id,
+            dueDate,
+            completedBy: currentUserId,
+            completedAt: new Date().toISOString(),
+          },
+        ]);
+      } else {
+        setCompletions((previous) =>
+          previous.filter(
+            (completion) =>
+              !(
+                completion.scheduleId === task.schedule.id &&
+                completion.dueDate === dueDate
+              ),
+          ),
+        );
+      }
+    } catch (error) {
+      console.error("Error updating task completion:", error);
+      setErrorMessage("Couldn't update that task. Please try again.");
+    }
+  }
+
+  async function handleToggleReaction(eventId: string, emoji: string) {
+    if (!currentUserId) return;
+    const existing = reactions.find(
+      (reaction) =>
+        reaction.eventId === eventId &&
+        reaction.userId === currentUserId &&
+        reaction.emoji === emoji,
+    );
+
+    try {
+      await toggleReaction(eventId, currentUserId, emoji, !existing);
+      setReactions((previous) =>
+        existing
+          ? previous.filter(
+              (reaction) =>
+                !(
+                  reaction.eventId === eventId &&
+                  reaction.userId === currentUserId &&
+                  reaction.emoji === emoji
+                ),
+            )
+          : [
+              ...previous,
+              {
+                eventId,
+                userId: currentUserId,
+                emoji,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+      );
+    } catch (error) {
+      console.error("Error toggling reaction:", error);
+      setErrorMessage("Couldn't save that reaction. Please try again.");
+    }
+  }
+
+  async function handleAddComment(eventId: string, body: string) {
+    if (!currentUserId) return;
+    try {
+      const comment = await addComment(eventId, currentUserId, body);
+      setComments((previous) => [...previous, comment]);
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      setErrorMessage("Couldn't add that comment. Please try again.");
+    }
+  }
+
+  async function handleDeleteComment(commentId: string) {
+    try {
+      await deleteComment(commentId);
+      setComments((previous) =>
+        previous.filter((comment) => comment.id !== commentId),
+      );
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      setErrorMessage("Couldn't delete that comment. Please try again.");
     }
   }
 
@@ -1124,6 +1304,20 @@ function App() {
           )}
         </div>
 
+        {dogs.length > 0 && (
+          <div className="mb-8">
+            <TodayPlan
+              tasks={getTodayPlan(schedules, completions)}
+              dogs={dogs.map((dog) => ({
+                dogId: dog.dogId,
+                dogName: dog.dogName,
+              }))}
+              onToggle={(task, done) => void handleToggleTask(task, done)}
+              onAddSchedule={() => changeScreen("schedules")}
+            />
+          </div>
+        )}
+
         {dogs.length > 0 ? (
           todaysEvents.length > 0 ? (
             <div className="rounded-2xl p-5 bg-light-tan">
@@ -1134,37 +1328,61 @@ function App() {
                 {todaysEvents.map((event) => (
                   <li
                     key={event.id}
-                    className="flex justify-between items-center gap-2 text-sm py-2 border-b border-warm-brown/15 text-text-dark last:border-b-0"
+                    className="py-2 border-b border-warm-brown/15 text-text-dark last:border-b-0"
                   >
-                    <span className="font-medium shrink-0">
-                      {getDogNameById(event.dogId)}
-                    </span>
-                    <span className="text-text-muted flex-1">
-                      {EVENT_DISPLAY[event.type]?.label ?? event.type}
-                      {event.type === "toilet" &&
-                        event.subtype &&
-                        ` ${event.subtype === "pee" ? "💧" : event.subtype === "poo" ? "💩" : ""}`}
-                      {event.isAccident && " ⚠️"}
-                    </span>
-                    <span className="text-xs text-text-muted text-right">
-                      {getMemberLabel(
-                        members,
-                        event.userId,
-                        currentUserId,
-                      )}{" "}
-                      · {getTimeAgo(event.timestamp)}
-                    </span>
-                    {(isHouseholdOwnerUser ||
-                      event.userId === currentUserId) && (
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteEventId(event.id)}
-                        aria-label="Delete event"
-                        className="text-xs text-rose-400 hover:text-rose-600 transition-colors ml-1 flex-shrink-0"
-                      >
-                        ✕
-                      </button>
-                    )}
+                    <div className="flex justify-between items-center gap-2 text-sm">
+                      <span className="font-medium shrink-0">
+                        {getDogNameById(event.dogId)}
+                      </span>
+                      <span className="text-text-muted flex-1">
+                        {EVENT_DISPLAY[event.type]?.label ?? event.type}
+                        {event.type === "toilet" &&
+                          event.subtype &&
+                          ` ${event.subtype === "pee" ? "💧" : event.subtype === "poo" ? "💩" : ""}`}
+                        {event.type === "toilet" && event.pottyOutcome === "success" && " ✅"}
+                        {(event.isAccident || event.pottyOutcome === "accident") && " ⚠️"}
+                      </span>
+                      <span className="text-xs text-text-muted text-right">
+                        {getMemberLabel(
+                          members,
+                          event.userId,
+                          currentUserId,
+                        )}{" "}
+                        · {getTimeAgo(event.timestamp)}
+                      </span>
+                      {(isHouseholdOwnerUser ||
+                        event.userId === currentUserId) && (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteEventId(event.id)}
+                          aria-label="Delete event"
+                          className="text-xs text-rose-400 hover:text-rose-600 transition-colors ml-1 flex-shrink-0"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                    <EventReactions
+                      eventId={event.id}
+                      reactions={reactions.filter(
+                        (reaction) => reaction.eventId === event.id,
+                      )}
+                      comments={comments.filter(
+                        (comment) => comment.eventId === event.id,
+                      )}
+                      currentUserId={currentUserId}
+                      members={members}
+                      isOwner={isHouseholdOwnerUser}
+                      onToggleReaction={(eventId, emoji) =>
+                        void handleToggleReaction(eventId, emoji)
+                      }
+                      onAddComment={(eventId, body) =>
+                        void handleAddComment(eventId, body)
+                      }
+                      onDeleteComment={(commentId) =>
+                        void handleDeleteComment(commentId)
+                      }
+                    />
                   </li>
                 ))}
               </ul>
@@ -1196,6 +1414,13 @@ function App() {
             className="mt-3 w-full text-center text-xs text-text-muted underline underline-offset-2 hover:text-warm-brown"
           >
             Privacy, terms and refunds
+          </button>
+          <button
+            type="button"
+            onClick={() => changeScreen("weeklyReport")}
+            className="mt-2 w-full text-center text-xs text-text-muted underline underline-offset-2 hover:text-warm-brown"
+          >
+            Weekly progress
           </button>
           <button
             type="button"
@@ -1399,6 +1624,18 @@ function App() {
           householdId={household.id}
           userIdInDB={claims.sub}
           isOwner={isHouseholdOwnerUser}
+          reactions={reactions}
+          comments={comments}
+          members={members}
+          onToggleReaction={(eventId, emoji) =>
+            void handleToggleReaction(eventId, emoji)
+          }
+          onAddComment={(eventId, body) =>
+            void handleAddComment(eventId, body)
+          }
+          onDeleteComment={(commentId) =>
+            void handleDeleteComment(commentId)
+          }
           onDeleteEvent={handleDeleteEvent}
           onDeleteDog={handleDeleteDog}
           onWeightLogged={() =>
@@ -1450,6 +1687,47 @@ function App() {
           onManageBilling={() => void handleManageBilling()}
           onRetry={() => void loadBilling(household)}
           onBack={() => changeScreen("home")}
+        />
+      </AppChrome>
+    );
+  }
+
+  if (currentScreen === "schedules") {
+    return (
+      <AppChrome
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+      >
+        <SchedulesScreen
+          householdId={household.id}
+          dogs={dogs}
+          members={members}
+          currentUserId={currentUserId}
+          schedules={schedules}
+          onChanged={() =>
+            void loadHouseholdData(household, claims.sub ?? "")
+          }
+          onBack={() => changeScreen("home")}
+        />
+      </AppChrome>
+    );
+  }
+
+  if (currentScreen === "weeklyReport") {
+    return (
+      <AppChrome
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+      >
+        <button
+          type="button"
+          onClick={() => changeScreen("home")}
+          className="mb-6 flex items-center gap-1.5 text-sm font-medium text-warm-brown hover:opacity-70"
+        >
+          ← Back
+        </button>
+        <WeeklyReport
+          report={buildWeeklyReport(dogs, events, weightLogs)}
         />
       </AppChrome>
     );
