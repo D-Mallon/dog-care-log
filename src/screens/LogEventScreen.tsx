@@ -1,5 +1,11 @@
 import { useState } from "react";
-import type { CareEvent, EventType } from "../types/core.ts";
+import type {
+  CareEvent,
+  EventType,
+  PottyCue,
+  PottyLocation,
+  PottyOutcome,
+} from "../types/core.ts";
 import { supabase } from "../lib/supabase.ts";
 import {
   fromDateTimeLocalValue,
@@ -114,13 +120,19 @@ export default function LogEventScreen(props: LogEventScreenProps) {
   const [selectedSubtypes, setSelectedSubtypes] = useState<("pee" | "poo")[]>(
     [],
   );
-  const [isAccident, setIsAccident] = useState<boolean>(false);
+  const [pottyOutcome, setPottyOutcome] = useState<PottyOutcome>("success");
+  const [pottyLocation, setPottyLocation] = useState<PottyLocation | "">("");
+  const [pottyCue, setPottyCue] = useState<PottyCue | "">("");
   const [userOptionalNote, setUserOptionalNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [eventTimestamp, setEventTimestamp] = useState(() =>
     toDateTimeLocalValue(new Date()),
   );
   const [formError, setFormError] = useState<string | null>(null);
+
+  function choosePottyOutcome(outcome: PottyOutcome) {
+    setPottyOutcome(outcome);
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -154,7 +166,10 @@ export default function LogEventScreen(props: LogEventScreenProps) {
           userId: props.userIdInDB,
           note,
           subtype,
-          isAccident,
+          isAccident: pottyOutcome === "accident",
+          pottyOutcome,
+          pottyLocation: pottyLocation || undefined,
+          pottyCue: pottyCue || undefined,
         }));
 
         const { error } = await supabase.from("DogEvent").insert(
@@ -167,6 +182,9 @@ export default function LogEventScreen(props: LogEventScreenProps) {
             note: newEvent.note ?? null,
             subtype: newEvent.subtype,
             isAccident: newEvent.isAccident ?? false,
+            pottyOutcome: newEvent.pottyOutcome ?? null,
+            pottyLocation: newEvent.pottyLocation ?? null,
+            pottyCue: newEvent.pottyCue ?? null,
           })),
         );
 
@@ -183,6 +201,14 @@ export default function LogEventScreen(props: LogEventScreenProps) {
         timestamp,
         userId: props.userIdInDB,
         note,
+        ...(selectedEvent === "toilet"
+          ? {
+              isAccident: pottyOutcome === "accident",
+              pottyOutcome,
+              pottyLocation: pottyLocation || undefined,
+              pottyCue: pottyCue || undefined,
+            }
+          : {}),
       };
 
       const { error } = await supabase.from("DogEvent").insert({
@@ -192,6 +218,9 @@ export default function LogEventScreen(props: LogEventScreenProps) {
         timestamp: newEvent.timestamp,
         userId: newEvent.userId,
         note: newEvent.note ?? null,
+        pottyOutcome: newEvent.pottyOutcome ?? null,
+        pottyLocation: newEvent.pottyLocation ?? null,
+        pottyCue: newEvent.pottyCue ?? null,
       });
 
       if (error) throw error;
@@ -243,7 +272,9 @@ export default function LogEventScreen(props: LogEventScreenProps) {
                       // Reset subtype and accident when event type changes
                       if (e.target.value !== "toilet") {
                         setSelectedSubtypes([]);
-                        setIsAccident(false);
+                        setPottyOutcome("success");
+                        setPottyLocation("");
+                        setPottyCue("");
                       }
                     }}
                     className="hidden"
@@ -371,17 +402,79 @@ export default function LogEventScreen(props: LogEventScreenProps) {
                 </span>
               </label>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isAccident}
-                onChange={(e) => setIsAccident(e.target.checked)}
-                className="form-checkbox h-4 w-4 text-warm-brown rounded border-gray-300 focus:ring-warm-brown"
-              />
-              <span className="text-sm font-medium text-text-dark">
-                Accident?
-              </span>
-            </label>
+            <div className="space-y-4">
+              <div>
+                <p className={labelClass}>Outcome</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => choosePottyOutcome("success")}
+                    aria-pressed={pottyOutcome === "success"}
+                    className={`rounded-xl border-2 px-4 py-3 text-sm font-semibold transition-colors ${
+                      pottyOutcome === "success"
+                        ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                        : "border-warm-brown/15 bg-white text-text-dark"
+                    }`}
+                  >
+                    ✅ Success
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => choosePottyOutcome("accident")}
+                    aria-pressed={pottyOutcome === "accident"}
+                    className={`rounded-xl border-2 px-4 py-3 text-sm font-semibold transition-colors ${
+                      pottyOutcome === "accident"
+                        ? "border-rose-400 bg-rose-50 text-rose-800"
+                        : "border-warm-brown/15 bg-white text-text-dark"
+                    }`}
+                  >
+                    ⚠️ Accident
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="potty-location" className={labelClass}>
+                    Where?
+                  </label>
+                  <select
+                    id="potty-location"
+                    value={pottyLocation}
+                    onChange={(e) =>
+                      setPottyLocation(e.target.value as PottyLocation | "")
+                    }
+                    className="w-full rounded-xl border-2 border-warm-brown/20 bg-cream px-3 py-3 text-sm text-text-dark outline-none focus:border-warm-brown/50"
+                  >
+                    <option value="">Not specified</option>
+                    <option value="outside">Outside</option>
+                    <option value="garden">Garden</option>
+                    <option value="pad">Puppy pad</option>
+                    <option value="indoor">Indoors</option>
+                    <option value="crate">Crate</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="potty-cue" className={labelClass}>
+                    Cue?
+                  </label>
+                  <select
+                    id="potty-cue"
+                    value={pottyCue}
+                    onChange={(e) =>
+                      setPottyCue(e.target.value as PottyCue | "")
+                    }
+                    className="w-full rounded-xl border-2 border-warm-brown/20 bg-cream px-3 py-3 text-sm text-text-dark outline-none focus:border-warm-brown/50"
+                  >
+                    <option value="">Not specified</option>
+                    <option value="asked">Asked to go</option>
+                    <option value="unprompted">Went unprompted</option>
+                    <option value="none">No clear cue</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

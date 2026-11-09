@@ -25,6 +25,26 @@ export function subscribeToHouseholdChanges(
       { event: "*", schema: "public", table: "WeightLog" },
       onChange,
     )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "CareSchedule" },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "CareTaskCompletion" },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "EventReaction" },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "EventComment" },
+      onChange,
+    )
     .subscribe();
 
   return () => {

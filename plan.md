@@ -552,7 +552,7 @@ Still required before production:
 
 ## 14. Post-v0.1.0 product roadmap — retention and differentiation
 
-Status: planned, not started. The production app is live at `https://loggidogs.vercel.app` on v0.1.0.
+Status: Phases A–E implemented on `feat/retention-roadmap` (2026-11-09). Production remains v0.1.0 until the feature branch is merged and verified. Email reminder delivery is deliberately deferred until SMTP is configured; the in-app schedule/today-plan loop is live in the feature branch.
 
 ### Product thesis
 
@@ -700,3 +700,18 @@ This directly addresses the new-owner pain and creates reasons to return daily w
 - Which first sprint items to prioritise.
 - Breed catalogue source/licence and size (100 vs 200 breeds).
 - Whether reminders should be email-only initially or include web push.
+
+
+### Implementation status (2026-11-09)
+
+Delivered on `feat/retention-roadmap`:
+
+- **A — detailed dog profile + breed catalogue:** four additive migrations, 129-breed local catalogue (plus mixed/unknown), searchable combobox, detailed add/edit profile, DOB/sex/neuter/weight/size/activity/care fields.
+- **B — potty training engine:** structured success/accident/location/cue fields on logs and edit, rule-based success-rate/interval/next-window/accident-pattern engine, profile dashboard with confidence and non-veterinary guidance.
+- **C — schedules/today plan (in-app):** CareSchedule + CareTaskCompletion tables/RLS, schedule management screen, today plan with overdue/done states and household completion attribution. Email reminders remain deferred until SMTP exists.
+- **D — reactions/comments:** immutable event reactions and short comments, realtime subscriptions, home/profile integration, author/owner deletion.
+- **E — weekly progress:** seven-day household/per-dog report with success rate, active days, consistency, weight trend, highlights and non-veterinary disclaimer.
+
+Verification: 120 tests pass, lint/typecheck/build pass, four migrations applied to Supabase production, and a browser smoke test covered dog creation with breed search, schedule creation/completion, potty logging/dashboard, reactions/comments and the weekly report. Test household/user were deleted after QA; the existing Mallon Family data was untouched.
+
+Remaining before calling the whole roadmap complete: SMTP-backed email reminders, live Stripe activation, real legal company details, and the separate ML phase.
