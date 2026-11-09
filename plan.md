@@ -715,3 +715,29 @@ Delivered on `feat/retention-roadmap`:
 Verification: 120 tests pass, lint/typecheck/build pass, four migrations applied to Supabase production, and a browser smoke test covered dog creation with breed search, schedule creation/completion, potty logging/dashboard, reactions/comments and the weekly report. Test household/user were deleted after QA; the existing Mallon Family data was untouched.
 
 Remaining before calling the whole roadmap complete: SMTP-backed email reminders, live Stripe activation, real legal company details, and the separate ML phase.
+
+---
+
+## 15. ML Phase 1 — explainable baseline and labels
+
+Status: implemented on `feat/ml-baseline`; production release after CI and QA.
+
+### What is included
+
+- **Feature snapshot** (`src/lib/mlFeatures.ts`): versioned, PII-free features per dog for future offline analysis/models — profile, active-day rates, potty outcome/interval, time-of-day shares, weight trend and consistency. All values are nullable and guarded against NaN.
+- **Baseline engine** (`src/lib/healthBaseline.ts`): compares the last 3 days with the previous 14 days using local calendar days and active logging days. Covers feeding, water, walking, potty accidents, success rate, toilet interval and weight. Confidence and data-quality labels are explicit; sparse data returns a “keep logging” insight instead of inventing an anomaly.
+- **Pattern-watch UI** (`src/components/HealthInsights.tsx`): explainable cards on the dog profile with recent vs baseline values, confidence, neutral wording and a non-veterinary disclaimer.
+- **Owner feedback labels** (`InsightFeedback` table + `src/lib/insightFeedbackApi.ts`): “Looks normal” / “Something’s off” records owner-confirmed labels for future model evaluation. RLS is household-scoped; labels are immutable to clients.
+- **Production migration** `20261110000100_insight_feedback.sql` applied.
+
+### Why this is the first ML step
+
+The product needs trustworthy pattern signals before a cross-dog model. Per-dog baselines handle individual variation, require less data, are explainable and are safer to ship than a diagnostic model. The feature snapshots and feedback labels are the dataset foundation for the next phase.
+
+### Next model steps
+
+1. Accumulate enough owner-confirmed labels across dogs.
+2. Evaluate a cross-dog model (gradient boosting/logistic regression) against the baseline on precision, recall, false-alarm rate and lead time.
+3. Add breed/size/age priors and time-of-day features where they improve validation.
+4. Only then consider personalized sequence models.
+5. Keep prediction copy non-diagnostic and vet-reviewed.

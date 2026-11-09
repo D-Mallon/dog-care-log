@@ -24,7 +24,10 @@ import EventReactions from "../components/EventReactions.tsx";
 import BreedCombobox from "../components/BreedCombobox.tsx";
 import { ageYearsFromDateOfBirth, dogAgeLabel } from "../lib/dogProfile.ts";
 import { summarizePotty } from "../lib/pottyTraining.ts";
+import { buildHealthBaseline } from "../lib/healthBaseline.ts";
+import { recordInsightFeedback } from "../lib/insightFeedbackApi.ts";
 import PottyDashboard from "../components/PottyDashboard.tsx";
+import HealthInsights from "../components/HealthInsights.tsx";
 
 type DogProfileScreenProps = {
   dog: Dog;
@@ -142,6 +145,11 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
 
   const latestWeight = sortedWeights[0]?.weight ?? props.dog.weight;
   const ageLabel = dogAgeLabel(props.dog);
+  const healthBaseline = buildHealthBaseline(
+    props.dog,
+    props.events,
+    props.weightLogs,
+  );
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null;
@@ -861,6 +869,22 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
       <PottyDashboard
         summary={summarizePotty(props.events, props.dog)}
         dogName={props.dog.dogName}
+      />
+
+      <HealthInsights
+        report={healthBaseline}
+        dogName={props.dog.dogName}
+        onFeedback={(insight, response) =>
+          recordInsightFeedback({
+            dogId: props.dog.dogId,
+            householdId: props.householdId,
+            insightKey: insight.id,
+            insightKind: insight.kind,
+            severity: insight.severity,
+            response,
+            userId: props.userIdInDB,
+          })
+        }
       />
 
       {/* Weight history */}
