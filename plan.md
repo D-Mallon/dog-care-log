@@ -547,3 +547,156 @@ Still required before production:
 - [ ] Review the legal placeholders and decide live Stripe activation/VAT setup.
 - [ ] Merge `release/mvp` to `main` after explicit approval; deploy production and tag `v0.1.0`.
 - [ ] Optional Release 1 stretch: email reminders; otherwise move to Release 2.
+
+---
+
+## 14. Post-v0.1.0 product roadmap — retention and differentiation
+
+Status: planned, not started. The production app is live at `https://loggidogs.vercel.app` on v0.1.0.
+
+### Product thesis
+
+Loggi should not be “a diary of dog events”. The daily jobs are:
+
+1. “What does my dog need right now?”
+2. “Has someone else already done it?”
+3. “Is my puppy improving?”
+4. “Is this normal?”
+
+The product should move from **recording** to **reassurance, coordination and progress**. The strongest initial wedge is puppy potty training in multi-person households.
+
+### Email confirmation / SMTP prerequisite
+
+Current Supabase auth config:
+
+- `mailer_autoconfirm = true` (signup signs in immediately)
+- no custom SMTP host; built-in email rate limit is **2 messages/hour**
+
+Do **not** flip `mailer_autoconfirm` to false until SMTP is configured, or new users will be unable to confirm their accounts. Recommended:
+
+1. Create a Resend/Postmark/SES account and verify a sending domain.
+2. Configure Supabase Auth SMTP with the provider host, port, user, API key and sender address.
+3. Set `mailer_autoconfirm = false`.
+4. Update the confirmation and recovery email templates with the Loggi branding and production URL.
+5. Test signup, confirmation, resend and password recovery.
+6. Keep auto-confirm only for a private beta if needed; require verified email before paid upgrade.
+
+### Detailed dog profile and breed catalog
+
+The current `Dogs` table is intentionally thin. Add:
+
+- `breedId` (stable catalogue ID) and `breed` free-text fallback
+- `sex`, `neutered`
+- `dateOfBirth` (not just age)
+- `adultWeightKg`, `currentWeightKg`, `sizeCategory`
+- `activityLevel`, `foodType`, `feedingSchedule`
+- `allergies`, `medications`, `medicalNotes`
+- `temperamentNotes`, `trainingStage`, `coatType`
+- `vetName`, `vetPhone`, `microchipNumber` (later)
+- `timezone` at household level
+
+Breed catalogue fields:
+
+- id, name, aliases, size category, adult weight range male/female, height range
+- lifespan range, energy level, grooming needs, shedding level
+- trainability, apartment suitability, good with children/dogs
+- common health considerations, exercise guidance
+- searchable combobox with “Mixed breed” and “I can’t find it” free-text paths
+
+The catalogue should be a local static JSON/TS file (no runtime third-party API dependency) with a licensed or internally curated source. Start with 100–150 common breeds; do not block onboarding on completeness.
+
+UX: keep the first add-dog form short (name, breed, sex, DOB, weight). Put the detailed care profile behind an optional “Add more details” step. Use the same form for editing.
+
+### Retention loops
+
+- **Morning:** today’s plan / due tasks
+- **During the day:** quick log and reminders
+- **Evening:** today’s summary
+- **Weekly:** progress report and streak
+- **Social:** reactions, short comments, handoff notes
+
+### Feature roadmap and agent division
+
+#### Phase A — Foundations (1 week)
+
+| Agent | Owns | Deliverable |
+|---|---|---|
+| A1 — Data/breed catalogue | `supabase/migrations/2026...dog_profile.sql`, `src/data/breeds.ts`, `src/types/core.ts` | Breed catalogue, new dog fields, validation, migration |
+| A2 — Dog profile UX | `src/screens/RegisterNewDogScreen.tsx`, `src/screens/DogProfileScreen.tsx`, `src/components/BreedCombobox.tsx` | Searchable breed picker, optional detailed profile, edit flow |
+| Integrator | App wiring, tests, build | Merge both, QA, commit |
+
+Acceptance: adding/editing a dog supports breed search, DOB, sex, neuter status, weight and optional care details; existing dogs remain editable; build/lint/tests pass.
+
+#### Phase B — Potty training engine (1–2 weeks)
+
+| Agent | Owns | Deliverable |
+|---|---|---|
+| B1 — Outcome data | migration, event types, `src/lib/pottyOutcomes.ts` | success/accident, location, cue, context fields |
+| B2 — Potty dashboard | `src/components/PottyDashboard.tsx`, profile integration | success rate, intervals, accident patterns, next window |
+| B3 — Insights/rules | `src/lib/pottyInsights.ts` + tests | rule-based predictions, explainability, cold-start priors |
+
+Acceptance: owners can mark success/accident; dashboard shows progress and a next-potty window; predictions are labelled as estimates, not veterinary advice.
+
+#### Phase C — Reminders and daily plan (1–2 weeks)
+
+| Agent | Owns | Deliverable |
+|---|---|---|
+| C1 — Schedule schema | migration, task/schedule types | recurring feed/walk/toilet/meds tasks |
+| C2 — Reminder delivery | `supabase/functions/send-reminders`, cron, email template | email reminders; later web push |
+| C3 — Today checklist UI | `src/components/TodayPlan.tsx`, App integration | due/overdue/done board and quick complete |
+
+Acceptance: a household can define a routine, see what is due, and one member completing a task updates everyone; reminders respect quiet hours.
+
+#### Phase D — Reactions and handoff (3–5 days)
+
+| Agent | Owns | Deliverable |
+|---|---|---|
+| D1 — Event social schema | migration, types | reactions and short comments per event |
+| D2 — UI | `src/components/EventReactions.tsx`, timeline integration | emoji reactions, comments, “I’ve got this” |
+| D3 — Notifications | notification preferences | mention/handoff notification only, no general chat noise |
+
+Acceptance: reactions/comments are event-anchored, realtime, accessible and do not turn into an unstructured chat.
+
+#### Phase E — Weekly progress (3–5 days)
+
+| Agent | Owns | Deliverable |
+|---|---|---|
+| E1 — Metrics | `src/lib/weeklyReport.ts` | success rate, accident trend, intervals, consistency |
+| E2 — Report UI/email | report screen, email template | weekly summary and shareable progress card |
+
+Acceptance: weekly metrics are computed from the household’s own data; no shaming language; data export remains free.
+
+#### Phase F — Predictive/anomaly layer (3–6 weeks after data)
+
+- Collect structured outcomes for at least several weeks.
+- Per-dog baseline, anomaly detection, breed/size/age priors.
+- Explainable predictions and confidence; vet-reviewed copy.
+- ML only after data quality and volume are sufficient. Do not promise diagnosis.
+
+#### Phase G — Offline write queue and caregiver links
+
+- IndexedDB/localStorage outbox with idempotent replay.
+- Limited caregiver/sitter links.
+- Later B2B sitter plan.
+
+### Rough timeline
+
+With one focused developer: **6–8 weeks** for Phases A–E, with reminders and potty training being the bulk. With AI agents doing parallel implementation: **3–5 weeks calendar time**, but integration, product decisions and QA remain the bottleneck. ML is a later 2–3 month data/model effort, not a first sprint.
+
+### Recommended first sprint
+
+1. Breed catalogue + detailed dog profile.
+2. Structured potty outcomes (success/accident/location/cue).
+3. Today checklist with next due.
+4. Event reactions/comments.
+5. Weekly progress report stub.
+
+This directly addresses the new-owner pain and creates reasons to return daily without overbuilding.
+
+### Decisions needed
+
+- SMTP/email provider and domain for confirmation.
+- Whether to enable email confirmation now or after SMTP.
+- Which first sprint items to prioritise.
+- Breed catalogue source/licence and size (100 vs 200 breeds).
+- Whether reminders should be email-only initially or include web push.
