@@ -536,6 +536,8 @@ Deployment progress (9 November 2026):
 - [x] Stripe test-mode products/prices created and webhook endpoint configured with the five required events.
 - [x] Live test-mode flow verified against the deployed project: household create, first dog, free-plan second-dog block (403), checkout session (monthly and lifetime), member join, one-household enforcement (409), cross-household RLS, subscription webhook → entitlement, second dog unlocked, Customer Portal session, cancellation webhook → entitlement revoked, owner-with-members deletion guard (409), member leave, account deletion (200), auth user removed.
 - [x] Local headless browser smoke test: sign in, create household, add dog, log event. Found and fixed a missing-photo placeholder bug.
+- [x] Password-recovery browser flow tested: recovery link lands on the update-password screen.
+- [x] Stripe checkout success/cancel URLs point at `https://loggidogs.vercel.app`; expired test sessions and test accounts cleaned up.
 - [x] Branch committed and pushed; CI and the Vercel preview deployment pass.
 
 Still required before production:
