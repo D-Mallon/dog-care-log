@@ -529,11 +529,19 @@ Completed in the working tree (uncommitted, `release/mvp`):
 - [x] A CI database job now applies every migration to PostgreSQL 16 with mocked `auth`/`storage` schemas and runs the free-plan/RLS checks using `supabase/tests/`.
 - [x] Vitest suites cover CSV, dates, predictions, care status, household export, account deletion UI, pricing gating, modals, household setup RPCs and backdate validation.
 
+Deployment progress (9 November 2026):
+
+- [x] Supabase project resumed; legacy dev tables dropped (1 empty legacy household, no dogs/events) and all 4 migrations applied.
+- [x] Four Edge Functions deployed and active: create-checkout-session, create-portal-session, delete-account, stripe-webhook (`verify_jwt = false`).
+- [x] Stripe test-mode products/prices created and webhook endpoint configured with the five required events.
+- [x] Live test-mode flow verified against the deployed project: household create, first dog, free-plan second-dog block (403), checkout session (monthly and lifetime), member join, one-household enforcement (409), cross-household RLS, subscription webhook → entitlement, second dog unlocked, Customer Portal session, cancellation webhook → entitlement revoked, owner-with-members deletion guard (409), member leave, account deletion (200), auth user removed.
+- [x] Local headless browser smoke test: sign in, create household, add dog, log event. Found and fixed a missing-photo placeholder bug.
+- [x] Branch committed and pushed; CI and the Vercel preview deployment pass.
+
 Still required before production:
 
-- [ ] Resume the Supabase project, reset the dev database, apply migrations and deploy Edge Functions.
-- [ ] Configure Stripe test products/prices/secrets/webhook and run the test-mode checkout/portal/lifetime flows.
-- [ ] Run the two-user QA checklist (`docs/qa.md`) against a Vercel preview.
-- [ ] Vercel preview/production env vars, smoke test and tag `v0.1.0`.
+- [ ] Run the full two-user QA checklist (`docs/qa.md`) against a public preview or local app, including email/password reset and mobile layout.
+- [ ] Set Vercel `VITE_APP_URL` and confirm `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` for Production and Preview.
+- [ ] Review the legal placeholders and decide live Stripe activation/VAT setup.
+- [ ] Merge `release/mvp` to `main` after explicit approval; deploy production and tag `v0.1.0`.
 - [ ] Optional Release 1 stretch: email reminders; otherwise move to Release 2.
-- [ ] Commit and push after explicit approval; no commit has been made yet.
