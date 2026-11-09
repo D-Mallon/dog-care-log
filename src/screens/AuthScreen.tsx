@@ -1,6 +1,7 @@
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "../lib/supabase.ts";
+import { env } from "../lib/env.ts";
 import { useEffect, useState } from "react";
 
 type AuthView =
@@ -19,6 +20,9 @@ export default function AuthScreen({
   onPasswordUpdated,
 }: AuthScreenProps) {
   const [view, setView] = useState<AuthView>(initialView);
+  const redirectTo =
+    env.appUrl ||
+    (typeof window !== "undefined" ? window.location.origin : undefined);
 
   useEffect(() => {
     setView(initialView);
@@ -64,6 +68,7 @@ export default function AuthScreen({
         <Auth
           supabaseClient={supabase}
           view={view}
+          redirectTo={redirectTo}
           appearance={{
             theme: ThemeSupa,
             variables: {
