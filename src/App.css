@@ -1,14 +1,16 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,400&family=DM+Sans:wght@400;500&display=swap");
 
 :root {
-  --cream: #fdf6ee;
-  --warm-brown: #7c5c3e;
-  --soft-amber: #e8a96a;
-  --muted-sage: #8fa888;
-  --dusty-rose: #d4a0a0;
-  --light-tan: #f0e0cc;
-  --text-dark: #3b2a1a;
-  --text-muted: #6f5946;
+  --cream: #faf6ef;
+  --warm-brown: #6d4f38;
+  --soft-amber: #d79a5c;
+  --muted-sage: #7e9274;
+  --dusty-rose: #c98a83;
+  --light-tan: #efe2d1;
+  --text-dark: #2f261f;
+  --text-muted: #756557;
+  --surface: #fffdf9;
+  --line: rgba(109, 79, 56, 0.12);
 }
 
 * {
@@ -19,30 +21,49 @@ body {
   background-color: var(--cream);
   background-image:
     radial-gradient(
-      ellipse at 20% 10%,
-      rgba(232, 169, 106, 0.15) 0%,
-      transparent 50%
+      ellipse at 15% 0%,
+      rgba(215, 154, 92, 0.12) 0%,
+      transparent 44%
     ),
     radial-gradient(
-      ellipse at 80% 80%,
-      rgba(143, 168, 136, 0.12) 0%,
-      transparent 50%
+      ellipse at 100% 100%,
+      rgba(126, 146, 116, 0.1) 0%,
+      transparent 48%
     );
   min-height: 100vh;
   font-family: "DM Sans", sans-serif;
   color: var(--text-dark);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 h1,
 h2,
 h3 {
   font-family: "Fraunces", serif;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  touch-action: manipulation;
 }
 
 #root {
   max-width: 480px;
+  min-height: 100dvh;
   margin: 0 auto;
-  padding: 2rem 1.25rem calc(2rem + env(safe-area-inset-bottom));
+  padding: 1rem 1rem calc(6.2rem + env(safe-area-inset-bottom));
 }
 
 :focus-visible {

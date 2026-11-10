@@ -146,7 +146,7 @@ export default function SchedulesScreen({
           daily routine
         </p>
         <h1 className="text-4xl font-bold font-fraunces text-warm-brown">
-          Care schedule
+          Your plan
         </h1>
         <p className="mt-2 text-sm text-text-muted">
           Set the routine once. Logged events mark tasks done and the whole
@@ -159,7 +159,7 @@ export default function SchedulesScreen({
         className="mb-8 rounded-3xl border border-warm-brown/10 bg-white p-5"
       >
         <h2 className="mb-4 text-lg font-bold font-fraunces text-warm-brown">
-          Add a task
+          Add a routine item
         </h2>
 
         <div className="grid grid-cols-2 gap-3">
@@ -292,12 +292,12 @@ export default function SchedulesScreen({
 
       <section className="rounded-3xl border border-warm-brown/10 bg-white p-5">
         <h2 className="mb-4 text-lg font-bold font-fraunces text-warm-brown">
-          Your routines
+          Current routine
         </h2>
 
         {schedules.length === 0 ? (
           <p className="text-sm text-text-muted">
-            No schedules yet. Add the first task above.
+            Nothing in the routine yet. Add the first item above.
           </p>
         ) : (
           <ul className="divide-y divide-warm-brown/10">

@@ -21,17 +21,17 @@ const SEVERITY_STYLES: Record<
   attention: {
     card: "border-rose-200 bg-rose-50/70",
     badge: "bg-rose-100 text-rose-800",
-    label: "Worth attention",
+    label: "Worth a look",
   },
   watch: {
     card: "border-amber-200 bg-amber-50/70",
     badge: "bg-amber-100 text-amber-800",
-    label: "Watch",
+    label: "Worth noting",
   },
   info: {
     card: "border-warm-brown/10 bg-cream",
     badge: "bg-light-tan text-warm-brown",
-    label: "Baseline",
+    label: "Steady",
   },
 };
 
@@ -84,13 +84,13 @@ export default function HealthInsights({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-text-muted">
-            Pattern watch
+            Insights
           </p>
           <h2
             id={headingId}
             className="font-fraunces text-xl font-bold text-warm-brown"
           >
-            {dogName}’s baseline
+            What’s changing for {dogName}
           </h2>
           <p className="mt-1 max-w-md text-xs leading-relaxed text-text-muted">
             {qualityCopy}

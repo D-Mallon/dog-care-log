@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { EventType } from "../types/core.ts";
+import type { EventType, HouseholdMember } from "../types/core.ts";
 import type { TodayTask, TodayTaskStatus } from "../lib/schedules.ts";
 import { EVENT_COLOURS } from "../lib/eventMeta.ts";
 
@@ -14,6 +14,8 @@ export type TodayPlanProps = {
   onToggle?: (task: TodayTask, done: boolean) => void;
   onAddSchedule?: () => void;
   isLoading?: boolean;
+  members?: HouseholdMember[];
+  currentUserId?: string;
 };
 
 type DogGroup = {
@@ -114,6 +116,8 @@ export function TodayPlan({
   onToggle,
   onAddSchedule,
   isLoading = false,
+  members = [],
+  currentUserId = "",
 }: TodayPlanProps) {
   const headingId = useId();
   const groups = groupByDog(tasks, dogs);
@@ -145,10 +149,10 @@ export function TodayPlan({
           <button
             type="button"
             onClick={onAddSchedule}
-            aria-label="Add a care schedule"
+            aria-label="Edit today’s plan"
             className="shrink-0 rounded-xl bg-light-tan px-3 py-1.5 text-xs font-medium text-warm-brown transition hover:opacity-80 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-warm-brown/40"
           >
-            + Add schedule
+            Edit plan
           </button>
         )}
       </div>
@@ -162,7 +166,7 @@ export function TodayPlan({
         </p>
       ) : !hasTasks ? (
         <p className="rounded-2xl bg-cream px-3 py-4 text-sm text-text-muted">
-          No care tasks scheduled for today.
+          Nothing planned for today.
         </p>
       ) : (
         <div className="space-y-5">
@@ -238,7 +242,14 @@ export function TodayPlan({
 
                         {task.completedBy && (
                           <p className="mt-0.5 text-xs text-text-muted">
-                            Completed by {task.completedBy}
+                            Completed by{" "}
+                            {task.completedBy === currentUserId
+                              ? "You"
+                              : members.find(
+                                  (member) =>
+                                    member.userId === task.completedBy,
+                                )?.displayName?.trim() ||
+                                "a household member"}
                             {completedTime ? ` at ${completedTime}` : ""}
                           </p>
                         )}

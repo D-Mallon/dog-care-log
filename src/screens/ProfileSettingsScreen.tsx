@@ -12,10 +12,11 @@ import {
   type AccountUser,
   type ProfilePreferences,
 } from "../lib/profile.ts";
+import { uploadAvatar } from "../lib/avatar.ts";
 
 type ProfileSettingsScreenProps = {
   onBack: () => void;
-  onOpenAccount: () => void;
+  onOpenAccount?: () => void;
   onUpdated: () => void;
 };
 
@@ -36,6 +37,8 @@ export default function ProfileSettingsScreen({
     null,
   );
   const [displayName, setDisplayName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
+  const [savingAvatar, setSavingAvatar] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -59,6 +62,7 @@ export default function ProfileSettingsScreen({
         if (!active) return;
         setUser(account);
         setDisplayName(account.displayName);
+        setAvatarUrl(account.avatarUrl);
         setPreferences(prefs);
       } catch (error) {
         console.error("Error loading profile:", error);
@@ -100,6 +104,33 @@ export default function ProfileSettingsScreen({
       });
     } finally {
       setSavingName(false);
+    }
+  }
+
+  async function handleAvatarChange(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !user || savingAvatar) return;
+
+    setSavingAvatar(true);
+    setNotice(null);
+    try {
+      const url = await uploadAvatar(file, user.userId);
+      setAvatarUrl(url);
+      setNotice({ type: "success", text: "Profile photo updated." });
+      onUpdated();
+    } catch (error) {
+      setNotice({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Couldn't upload that photo.",
+      });
+    } finally {
+      setSavingAvatar(false);
     }
   }
 
@@ -296,15 +327,38 @@ export default function ProfileSettingsScreen({
 
       <section className="mb-6 rounded-3xl border border-warm-brown/10 bg-white p-5">
         <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-light-tan font-fraunces text-xl font-bold text-warm-brown">
-            {initial}
+          <div className="relative">
+            <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-light-tan font-fraunces text-xl font-bold text-warm-brown">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                initial
+              )}
+            </div>
+            <label className="absolute -bottom-1 -right-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-warm-brown text-[10px] text-white">
+              <span aria-hidden="true">✎</span>
+              <span className="sr-only">Change profile photo</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => void handleAvatarChange(event)}
+                disabled={savingAvatar}
+                className="hidden"
+              />
+            </label>
           </div>
           <div>
             <h2 className="font-fraunces text-lg font-bold text-warm-brown">
               Household identity
             </h2>
             <p className="text-xs text-text-muted">
-              Shown as “Logged by …” to other members.
+              {savingAvatar
+                ? "Uploading photo…"
+                : "Shown as “Logged by …” to other members."}
             </p>
           </div>
         </div>
@@ -523,18 +577,20 @@ export default function ProfileSettingsScreen({
         </button>
       </section>
 
-      <button
-        type="button"
-        onClick={onOpenAccount}
-        className="w-full rounded-2xl border border-warm-brown/10 bg-light-tan p-4 text-left hover:bg-cream"
-      >
-        <span className="block text-sm font-semibold text-warm-brown">
-          Account & data →
-        </span>
-        <span className="mt-1 block text-xs text-text-muted">
-          Export household data, review your plan, or delete your account.
-        </span>
-      </button>
+      {onOpenAccount && (
+        <button
+          type="button"
+          onClick={onOpenAccount}
+          className="w-full rounded-2xl border border-warm-brown/10 bg-light-tan p-4 text-left hover:bg-cream"
+        >
+          <span className="block text-sm font-semibold text-warm-brown">
+            Account & data →
+          </span>
+          <span className="mt-1 block text-xs text-text-muted">
+            Export household data, review your plan, or delete your account.
+          </span>
+        </button>
+      )}
     </div>
   );
 }

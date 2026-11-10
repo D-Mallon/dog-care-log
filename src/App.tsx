@@ -16,6 +16,12 @@ import TodayPlan from "./components/TodayPlan.tsx";
 import WeeklyReport from "./components/WeeklyReport.tsx";
 import SchedulesScreen from "./screens/SchedulesScreen.tsx";
 import ProfileSettingsScreen from "./screens/ProfileSettingsScreen.tsx";
+import InsightsScreen from "./screens/InsightsScreen.tsx";
+import InsightsSummaryCard from "./components/InsightsSummaryCard.tsx";
+import OnboardingChecklist from "./components/OnboardingChecklist.tsx";
+import OnDutyCard from "./components/OnDutyCard.tsx";
+import AppHeader from "./components/AppHeader.tsx";
+import BottomNav, { type NavTab } from "./components/BottomNav.tsx";
 import Modal from "./components/Modal.tsx";
 import OfflineBanner from "./components/OfflineBanner.tsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -46,6 +52,8 @@ import {
 import { copyText } from "./lib/clipboard.ts";
 import { canAddAnotherDog } from "./lib/planLimits.ts";
 import { buildWeeklyReport } from "./lib/weeklyReport.ts";
+import { buildHealthBaseline } from "./lib/healthBaseline.ts";
+import { isDemoDog } from "./lib/demoData.ts";
 import { AccountError, deleteAccount } from "./lib/account.ts";
 import {
   accountExportFilename,
@@ -61,6 +69,7 @@ import {
   listCompletions,
   listSchedules,
   setTaskCompletion,
+  updateSchedule,
 } from "./lib/scheduleApi.ts";
 import {
   getTodayPlan,
@@ -84,6 +93,8 @@ import type { HouseholdMemberView } from "./screens/HouseholdScreen.tsx";
 type SessionClaims = {
   sub: string;
   email?: string;
+  displayName?: string;
+  avatarUrl?: string;
 };
 
 type Screen =
@@ -97,7 +108,8 @@ type Screen =
   | "account"
   | "profile"
   | "weeklyReport"
-  | "schedules";
+  | "schedules"
+  | "insights";
 
 function detectRecoveryRedirect(): boolean {
   if (typeof window === "undefined") return false;
@@ -109,7 +121,7 @@ function detectRecoveryRedirect(): boolean {
   );
 }
 
-function SplashScreen({ message = "Loading your pack…" }: { message?: string }) {
+function SplashScreen({ message = "Loading your household…" }: { message?: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-cream">
       <div className="text-center">
@@ -174,16 +186,48 @@ function AppChrome({
   onDismissError,
   noticeMessage,
   onDismissNotice,
+  currentScreen,
+  displayName,
+  email,
+  avatarUrl,
+  householdName,
+  onNavigate,
+  onLogout,
 }: {
   children: ReactNode;
   errorMessage: string | null;
   onDismissError: () => void;
   noticeMessage?: string | null;
   onDismissNotice?: () => void;
+  currentScreen: Screen;
+  displayName: string;
+  email?: string;
+  avatarUrl?: string;
+  householdName?: string;
+  onNavigate: (screen: Screen) => void;
+  onLogout: () => void;
 }) {
+  const activeTab: NavTab =
+    currentScreen === "insights" || currentScreen === "weeklyReport"
+      ? "insights"
+      : currentScreen === "schedules"
+        ? "schedules"
+        : currentScreen === "profile" || currentScreen === "account"
+          ? "profile"
+          : "home";
+
   return (
     <>
+      <AppHeader
+        displayName={displayName}
+        email={email}
+        avatarUrl={avatarUrl}
+        householdName={householdName}
+        onNavigate={onNavigate}
+        onLogout={onLogout}
+      />
       {children}
+      <BottomNav active={activeTab} onNavigate={onNavigate} />
       <OfflineBanner />
       {noticeMessage && onDismissNotice && (
         <NoticeToast message={noticeMessage} onDismiss={onDismissNotice} />
@@ -214,6 +258,7 @@ function App() {
   const [dataError, setDataError] = useState<string | null>(null);
   const [quickToiletDogId, setQuickToiletDogId] = useState<string | null>(null);
   const [quickLogPending, setQuickLogPending] = useState<string | null>(null);
+  const [showAllActivity, setShowAllActivity] = useState(false);
   const [confirmDeleteEventId, setConfirmDeleteEventId] = useState<
     string | null
   >(null);
@@ -244,6 +289,21 @@ function App() {
     dogs.length,
     billingSummary !== null,
   );
+
+  const dogInsightCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const dog of dogs) {
+      counts[dog.dogId] = buildHealthBaseline(
+        dog,
+        events.filter((event) => event.dogId === dog.dogId),
+        weightLogs.filter((weight) => weight.dogId === dog.dogId),
+      ).insights.filter(
+        (insight) =>
+          insight.kind !== "logging" && insight.severity !== "info",
+      ).length;
+    }
+    return counts;
+  }, [dogs, events, weightLogs]);
 
   const memberViews = useMemo<HouseholdMemberView[]>(
     () =>
@@ -498,8 +558,24 @@ function App() {
           return;
         }
         const sub = data?.claims?.sub;
+        const metadata =
+          (data?.claims as { user_metadata?: Record<string, unknown> } | undefined)
+            ?.user_metadata ?? {};
         const nextClaims: SessionClaims | null = sub
-          ? { sub, email: data?.claims?.email ?? undefined }
+          ? {
+              sub,
+              email: data?.claims?.email ?? undefined,
+              displayName:
+                typeof metadata.display_name === "string"
+                  ? metadata.display_name
+                  : typeof metadata.full_name === "string"
+                    ? metadata.full_name
+                    : undefined,
+              avatarUrl:
+                typeof metadata.avatar_url === "string"
+                  ? metadata.avatar_url
+                  : undefined,
+            }
           : null;
         currentUserIdRef.current = nextClaims?.sub ?? null;
         setClaims(nextClaims);
@@ -531,8 +607,22 @@ function App() {
         return;
       }
 
+      const metadata = session?.user?.user_metadata ?? {};
       const nextClaims: SessionClaims | null = session?.user
-        ? { sub: session.user.id, email: session.user.email ?? undefined }
+        ? {
+            sub: session.user.id,
+            email: session.user.email ?? undefined,
+            displayName:
+              typeof metadata.display_name === "string"
+                ? metadata.display_name
+                : typeof metadata.full_name === "string"
+                  ? metadata.full_name
+                  : undefined,
+            avatarUrl:
+              typeof metadata.avatar_url === "string"
+                ? metadata.avatar_url
+                : undefined,
+          }
         : null;
       const nextUserId = nextClaims?.sub ?? null;
       if (nextUserId !== currentUserIdRef.current) {
@@ -837,6 +927,27 @@ function App() {
     resetDomainState();
   }
 
+  async function refreshAccountClaims() {
+    const { data } = await supabase.auth.getUser();
+    const user = data.user;
+    if (!user) return;
+    const metadata = user.user_metadata ?? {};
+    setClaims({
+      sub: user.id,
+      email: user.email ?? undefined,
+      displayName:
+        typeof metadata.display_name === "string"
+          ? metadata.display_name
+          : typeof metadata.full_name === "string"
+            ? metadata.full_name
+            : undefined,
+      avatarUrl:
+        typeof metadata.avatar_url === "string"
+          ? metadata.avatar_url
+          : undefined,
+    });
+  }
+
   async function handleCopyInviteCode(): Promise<boolean> {
     if (!household) return false;
     const copied = await copyText(household.inviteCode);
@@ -992,6 +1103,24 @@ function App() {
     }
   }
 
+  async function handleTakeTask(task: TodayTask) {
+    if (!currentUserId) return;
+    try {
+      await updateSchedule(task.schedule.id, { assignedTo: currentUserId });
+      setSchedules((previous) =>
+        previous.map((schedule) =>
+          schedule.id === task.schedule.id
+            ? { ...schedule, assignedTo: currentUserId }
+            : schedule,
+        ),
+      );
+      setNoticeMessage(`You’re on ${task.schedule.title.toLowerCase()}.`);
+    } catch (error) {
+      console.error("Error taking task:", error);
+      setErrorMessage("Couldn't assign that task. Please try again.");
+    }
+  }
+
   async function handleToggleTask(task: TodayTask, done: boolean) {
     if (!currentUserId) return;
     const dueDate = toLocalDateKey(new Date(task.dueAt));
@@ -1112,6 +1241,19 @@ function App() {
     );
   }
 
+  const chromeProps = {
+    currentScreen,
+    displayName:
+      claims?.displayName?.trim() ||
+      claims?.email?.split("@")[0] ||
+      "You",
+    email: claims?.email,
+    avatarUrl: claims?.avatarUrl,
+    householdName: household?.name,
+    onNavigate: changeScreen,
+    onLogout: () => void handleSignOut(),
+  };
+
   if (isInitializing || (claims && householdLoading)) {
     return <SplashScreen />;
   }
@@ -1132,7 +1274,7 @@ function App() {
   if (householdError && !household) {
     return (
       <FullScreenMessage
-        title="Couldn't load your pack"
+        title="Couldn't load your household"
         message={householdError}
         actionLabel="Try again"
         onAction={() => void loadHousehold(claims.sub)}
@@ -1143,9 +1285,25 @@ function App() {
   }
 
   if (!household) {
+    if (currentScreen === "profile") {
+      return (
+        <AppChrome
+          {...chromeProps}
+          errorMessage={errorMessage}
+          onDismissError={() => setErrorMessage(null)}
+        >
+          <ProfileSettingsScreen
+            onBack={() => changeScreen("home")}
+            onUpdated={() => void refreshAccountClaims()}
+          />
+        </AppChrome>
+      );
+    }
+
     return (
       <HouseholdSetupScreen
         userIdInDB={claims.sub}
+        onOpenProfile={() => changeScreen("profile")}
         onHouseholdReady={(readyHousehold) => {
           setHousehold(readyHousehold);
           setHouseholdLoading(false);
@@ -1156,7 +1314,7 @@ function App() {
 
   if (currentScreen === "home") {
     if (dogsLoading || eventsLoading) {
-      return <SplashScreen message="Loading your pack…" />;
+      return <SplashScreen message="Loading your household…" />;
     }
 
     if (dataError) {
@@ -1185,84 +1343,126 @@ function App() {
 
     return (
       <AppChrome
+        {...chromeProps}
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
         noticeMessage={noticeMessage}
         onDismissNotice={() => setNoticeMessage(null)}
       >
-        <div className="mb-8">
-          <div className="flex justify-between items-start gap-3 mb-6">
-            <div>
-              <p className="text-xs font-medium tracking-widest uppercase text-text-muted mb-1">
-                your pack
-              </p>
-              <h1 className="text-4xl font-bold font-fraunces text-warm-brown">
-                Loggi
-              </h1>
-            </div>
-
-            <div className="flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => changeScreen("household")}
-                className="px-3 py-2 rounded-lg text-xs font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
-              >
-                Household
-              </button>
-              <button
-                type="button"
-                onClick={() => changeScreen("pricing")}
-                className="px-3 py-2 rounded-lg text-xs font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan transition-colors"
-              >
-                {billingSummary?.entitlement.isEntitled ? "Plan" : "Upgrade"}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleSignOut()}
-                className="px-3 py-2 rounded-lg text-xs font-medium text-text-muted hover:text-warm-brown transition-colors"
-              >
-                Log out
-              </button>
-            </div>
-          </div>
-
-          <button
-            className="w-full py-3 rounded-xl bg-warm-brown text-white text-sm font-bold hover:opacity-90 transition-opacity"
-            onClick={handleAddDogClick}
-          >
-            + Add a Dog
-          </button>
+        <div className="mb-5">
+          <p className="text-xs font-medium tracking-wide text-text-muted">
+            {new Date().getHours() < 12
+              ? "Good morning"
+              : new Date().getHours() < 18
+                ? "Good afternoon"
+                : "Good evening"}
+          </p>
+          <h1 className="mt-1 text-[2.15rem] font-bold leading-tight font-fraunces text-warm-brown">
+            Here’s today
+          </h1>
+          <p className="mt-1 text-sm text-text-muted">
+            {new Date().toLocaleDateString(undefined, {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
+          </p>
         </div>
 
-        <div className="flex flex-col gap-4 mb-10">
-          {dogs.length === 0 ? (
-            <p className="text-text-muted">
-              You haven't linked any dogs to your account yet.
+        <OnboardingChecklist
+          dogs={dogs}
+          events={events}
+          schedules={schedules}
+          members={members}
+          weightLogs={weightLogs}
+          onNavigate={changeScreen}
+        />
+
+        <OnDutyCard
+          tasks={getTodayPlan(schedules, completions)}
+          members={members}
+          currentUserId={currentUserId}
+          onTakeTask={(task) => void handleTakeTask(task)}
+          onOpenPlan={() => changeScreen("schedules")}
+        />
+
+        {dogs.length > 0 && (
+          <div className="mb-5">
+            <TodayPlan
+              tasks={getTodayPlan(schedules, completions)}
+              dogs={dogs.map((dog) => ({
+                dogId: dog.dogId,
+                dogName: dog.dogName,
+              }))}
+              members={members}
+              currentUserId={currentUserId}
+              onToggle={(task, done) => void handleToggleTask(task, done)}
+              onAddSchedule={() => changeScreen("schedules")}
+            />
+          </div>
+        )}
+
+        <InsightsSummaryCard
+          dogs={dogs}
+          events={events}
+          weightLogs={weightLogs}
+          onOpenInsights={() => changeScreen("insights")}
+        />
+
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+              Your household
             </p>
+            <h2 className="font-fraunces text-xl font-bold text-warm-brown">
+              The dogs
+            </h2>
+          </div>
+          {canAddDog && (
+            <button
+              type="button"
+              onClick={handleAddDogClick}
+              className="rounded-xl border border-warm-brown/20 px-3 py-2 text-xs font-semibold text-warm-brown hover:bg-light-tan"
+            >
+              + Add a dog
+            </button>
+          )}
+        </div>
+
+        <div className="mb-7 flex flex-col gap-4">
+          {dogs.length === 0 ? (
+            <div className="rounded-3xl border border-warm-brown/10 bg-white p-5 text-center">
+              <p className="text-3xl" aria-hidden="true">
+                🐾
+              </p>
+              <h2 className="mt-2 font-fraunces text-lg font-bold text-warm-brown">
+                Start with your dog
+              </h2>
+              <p className="mt-1 text-sm text-text-muted">
+                Add a name, a breed and a photo. You can fill in the rest later.
+              </p>
+              <button
+                type="button"
+                onClick={handleAddDogClick}
+                className="mt-4 rounded-xl bg-warm-brown px-4 py-2.5 text-sm font-semibold text-white"
+              >
+                Add your first dog
+              </button>
+            </div>
           ) : (
             dogs.map((dog) => {
-              const lastFedTimestamp = getTheDogsLastEventTime(
-                dog.dogId,
-                "feed",
-              );
-              const lastWalkTimestamp = getTheDogsLastEventTime(
-                dog.dogId,
-                "walk",
-              );
-              const lastToiletTimestamp = getTheDogsLastEventTime(
-                dog.dogId,
-                "toilet",
-              );
-              const lastMedsTimestamp = getTheDogsLastEventTime(
-                dog.dogId,
-                "meds",
-              );
+              const lastFedTimestamp = getTheDogsLastEventTime(dog.dogId, "feed");
+              const lastWalkTimestamp = getTheDogsLastEventTime(dog.dogId, "walk");
+              const lastToiletTimestamp = getTheDogsLastEventTime(dog.dogId, "toilet");
+              const lastMedsTimestamp = getTheDogsLastEventTime(dog.dogId, "meds");
 
               return (
                 <DogStatusCard
                   key={dog.dogId}
                   dogName={dog.dogName}
                   dogImage={dog.dogImage}
+                  insightCount={dogInsightCounts[dog.dogId]}
+                  isDemo={isDemoDog(dog)}
                   lastFedHours={
                     lastFedTimestamp
                       ? getTimeAgo(lastFedTimestamp)
@@ -1287,10 +1487,7 @@ function App() {
                   }
                   feedUrgency={getCareUrgency(lastFedTimestamp, "feed")}
                   walkUrgency={getCareUrgency(lastWalkTimestamp, "walk")}
-                  toiletUrgency={getCareUrgency(
-                    lastToiletTimestamp,
-                    "toilet",
-                  )}
+                  toiletUrgency={getCareUrgency(lastToiletTimestamp, "toilet")}
                   medsUrgency={getCareUrgency(lastMedsTimestamp, "meds")}
                   quickLogPending={quickLogPending}
                   onLogEvent={() => {
@@ -1306,132 +1503,125 @@ function App() {
           )}
         </div>
 
-        {dogs.length > 0 && (
-          <div className="mb-8">
-            <TodayPlan
-              tasks={getTodayPlan(schedules, completions)}
-              dogs={dogs.map((dog) => ({
-                dogId: dog.dogId,
-                dogName: dog.dogName,
-              }))}
-              onToggle={(task, done) => void handleToggleTask(task, done)}
-              onAddSchedule={() => changeScreen("schedules")}
-            />
-          </div>
-        )}
-
-        {dogs.length > 0 ? (
-          todaysEvents.length > 0 ? (
-            <div className="rounded-2xl p-5 bg-light-tan">
-              <h2 className="text-lg font-semibold mb-4 text-warm-brown">
-                Today's Events
-              </h2>
-              <ul className="flex flex-col gap-3">
-                {todaysEvents.map((event) => (
-                  <li
-                    key={event.id}
-                    className="py-2 border-b border-warm-brown/15 text-text-dark last:border-b-0"
-                  >
-                    <div className="flex justify-between items-center gap-2 text-sm">
-                      <span className="font-medium shrink-0">
-                        {getDogNameById(event.dogId)}
-                      </span>
-                      <span className="text-text-muted flex-1">
-                        {EVENT_DISPLAY[event.type]?.label ?? event.type}
-                        {event.type === "toilet" &&
-                          event.subtype &&
-                          ` ${event.subtype === "pee" ? "💧" : event.subtype === "poo" ? "💩" : ""}`}
-                        {event.type === "toilet" && event.pottyOutcome === "success" && " ✅"}
-                        {(event.isAccident || event.pottyOutcome === "accident") && " ⚠️"}
-                      </span>
-                      <span className="text-xs text-text-muted text-right">
-                        {getMemberLabel(
-                          members,
-                          event.userId,
-                          currentUserId,
-                        )}{" "}
-                        · {getTimeAgo(event.timestamp)}
-                      </span>
-                      {(isHouseholdOwnerUser ||
-                        event.userId === currentUserId) && (
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteEventId(event.id)}
-                          aria-label="Delete event"
-                          className="text-xs text-rose-400 hover:text-rose-600 transition-colors ml-1 flex-shrink-0"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                    <EventReactions
-                      eventId={event.id}
-                      reactions={reactions.filter(
-                        (reaction) => reaction.eventId === event.id,
-                      )}
-                      comments={comments.filter(
-                        (comment) => comment.eventId === event.id,
-                      )}
-                      currentUserId={currentUserId}
-                      members={members}
-                      isOwner={isHouseholdOwnerUser}
-                      onToggleReaction={(eventId, emoji) =>
-                        void handleToggleReaction(eventId, emoji)
-                      }
-                      onAddComment={(eventId, body) =>
-                        void handleAddComment(eventId, body)
-                      }
-                      onDeleteComment={(commentId) =>
-                        void handleDeleteComment(commentId)
-                      }
-                    />
-                  </li>
-                ))}
-              </ul>
+        {dogs.length > 0 && todaysEvents.length > 0 && (
+          <section className="mb-2">
+            <div className="mb-3 flex items-end justify-between gap-2">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                  Lately
+                </p>
+                <h2 className="font-fraunces text-xl font-bold text-warm-brown">
+                  Recent activity
+                </h2>
+              </div>
+              {todaysEvents.length > 3 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAllActivity((value) => !value)}
+                  className="text-xs font-semibold text-warm-brown underline underline-offset-2"
+                >
+                  {showAllActivity ? "Show less" : `View all ${todaysEvents.length}`}
+                </button>
+              )}
             </div>
-          ) : (
-            <p className="text-sm text-text-muted text-center py-2">
-              No events logged today yet. Tap a dog card to log one.
-            </p>
-          )
-        ) : (
-          <p className="text-sm text-text-muted text-center py-2">
-            No dogs added yet. Tap "+ Add a Dog" to get started.
-          </p>
+
+            <div className="space-y-2">
+              {(showAllActivity ? todaysEvents : todaysEvents.slice(0, 3)).map(
+                (event) => {
+                  const eventReactions = reactions.filter(
+                    (reaction) => reaction.eventId === event.id,
+                  );
+                  const eventComments = comments.filter(
+                    (comment) => comment.eventId === event.id,
+                  );
+
+                  return (
+                    <div
+                      key={event.id}
+                      className="rounded-2xl border border-warm-brown/10 bg-white p-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-text-dark">
+                            {getDogNameById(event.dogId)} ·{" "}
+                            {EVENT_DISPLAY[event.type]?.label ?? event.type}
+                            {event.type === "toilet" &&
+                              event.subtype &&
+                              ` ${event.subtype === "pee" ? "💧" : event.subtype === "poo" ? "💩" : ""}`}
+                            {event.type === "toilet" &&
+                              event.pottyOutcome === "success" &&
+                              " ✅"}
+                            {(event.isAccident ||
+                              event.pottyOutcome === "accident") &&
+                              " ⚠️"}
+                          </p>
+                          <p className="mt-0.5 text-xs text-text-muted">
+                            {getMemberLabel(members, event.userId, currentUserId)} ·{" "}
+                            {getTimeAgo(event.timestamp)}
+                          </p>
+                        </div>
+                        {(isHouseholdOwnerUser ||
+                          event.userId === currentUserId) && (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteEventId(event.id)}
+                            aria-label="Delete event"
+                            className="shrink-0 rounded-lg p-1 text-xs text-rose-400 hover:text-rose-600"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      <details className="mt-2">
+                        <summary className="cursor-pointer list-none text-xs font-medium text-warm-brown">
+                          {eventReactions.length > 0 || eventComments.length > 0
+                            ? `${eventReactions.length} reactions · ${eventComments.length} comments`
+                            : "React or leave a note"}
+                        </summary>
+                        <EventReactions
+                          eventId={event.id}
+                          reactions={eventReactions}
+                          comments={eventComments}
+                          currentUserId={currentUserId}
+                          members={members}
+                          isOwner={isHouseholdOwnerUser}
+                          onToggleReaction={(eventId, emoji) =>
+                            void handleToggleReaction(eventId, emoji)
+                          }
+                          onAddComment={(eventId, body) =>
+                            void handleAddComment(eventId, body)
+                          }
+                          onDeleteComment={(commentId) =>
+                            void handleDeleteComment(commentId)
+                          }
+                        />
+                      </details>
+                    </div>
+                  );
+                },
+              )}
+            </div>
+          </section>
         )}
 
-        <div className="mt-8 pt-6 border-t border-warm-brown/10">
+        <footer className="mt-8 flex flex-wrap justify-center gap-x-3 gap-y-2 border-t border-warm-brown/10 pt-4 text-[11px] text-text-muted">
           <button
             type="button"
-            onClick={() => {
-              window.open("https://forms.gle/cMtnvK4MEdMrGmyH6", "_blank");
-            }}
-            className="w-full py-3 rounded-xl text-sm font-medium text-warm-brown border-2 border-warm-brown/20 hover:bg-light-tan transition-colors"
+            onClick={() => window.open("https://forms.gle/cMtnvK4MEdMrGmyH6", "_blank")}
+            className="hover:text-warm-brown"
           >
-            🐛 Report a bug or request a feature
+            Send feedback
           </button>
+          <span aria-hidden="true">·</span>
           <button
             type="button"
             onClick={() => changeScreen("legal")}
-            className="mt-3 w-full text-center text-xs text-text-muted underline underline-offset-2 hover:text-warm-brown"
+            className="hover:text-warm-brown"
           >
-            Privacy, terms and refunds
+            Privacy & terms
           </button>
-          <button
-            type="button"
-            onClick={() => changeScreen("weeklyReport")}
-            className="mt-2 w-full text-center text-xs text-text-muted underline underline-offset-2 hover:text-warm-brown"
-          >
-            Weekly progress
-          </button>
-          <button
-            type="button"
-            onClick={() => changeScreen("account")}
-            className="mt-2 w-full text-center text-xs text-text-muted underline underline-offset-2 hover:text-warm-brown"
-          >
-            Account & data
-          </button>
-        </div>
+        </footer>
 
         {confirmDeleteEventId && (
           <Modal
@@ -1545,6 +1735,7 @@ function App() {
   if (currentScreen === "logEvent") {
     return (
       <AppChrome
+        {...chromeProps}
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
       >
@@ -1567,6 +1758,7 @@ function App() {
   if (currentScreen === "addDog") {
     return (
       <AppChrome
+        {...chromeProps}
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
       >
@@ -1604,6 +1796,7 @@ function App() {
 
     return (
       <AppChrome
+        {...chromeProps}
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
       >
@@ -1651,6 +1844,7 @@ function App() {
   if (currentScreen === "household") {
     return (
       <AppChrome
+        {...chromeProps}
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
       >
@@ -1676,6 +1870,7 @@ function App() {
   if (currentScreen === "pricing") {
     return (
       <AppChrome
+        {...chromeProps}
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
       >
@@ -1697,6 +1892,7 @@ function App() {
   if (currentScreen === "schedules") {
     return (
       <AppChrome
+        {...chromeProps}
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
       >
@@ -1718,6 +1914,7 @@ function App() {
   if (currentScreen === "weeklyReport") {
     return (
       <AppChrome
+        {...chromeProps}
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
       >
@@ -1735,18 +1932,39 @@ function App() {
     );
   }
 
+  if (currentScreen === "insights") {
+    return (
+      <AppChrome
+        {...chromeProps}
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+      >
+        <InsightsScreen
+          dogs={dogs}
+          events={events}
+          weightLogs={weightLogs}
+          householdId={household.id}
+          userId={claims.sub}
+          onAddDog={handleAddDogClick}
+        />
+      </AppChrome>
+    );
+  }
+
   if (currentScreen === "profile") {
     return (
       <AppChrome
+        {...chromeProps}
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
       >
         <ProfileSettingsScreen
           onBack={() => changeScreen("account")}
           onOpenAccount={() => changeScreen("account")}
-          onUpdated={() =>
-            void loadHouseholdData(household, claims.sub ?? "")
-          }
+          onUpdated={() => {
+            void loadHouseholdData(household, claims.sub ?? "");
+            void refreshAccountClaims();
+          }}
         />
       </AppChrome>
     );
@@ -1755,6 +1973,7 @@ function App() {
   if (currentScreen === "account") {
     return (
       <AppChrome
+        {...chromeProps}
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
       >
@@ -1782,6 +2001,7 @@ function App() {
   if (currentScreen === "legal") {
     return (
       <AppChrome
+        {...chromeProps}
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
       >

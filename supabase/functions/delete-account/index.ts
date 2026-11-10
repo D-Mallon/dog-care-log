@@ -123,6 +123,28 @@ async function deleteHouseholdImages(
   }
 }
 
+async function deleteUserAvatar(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+): Promise<void> {
+  const { data, error } = await admin.storage
+    .from("avatars")
+    .list(userId, { limit: 20 });
+
+  if (error) {
+    console.warn("Could not list avatar for deletion:", error);
+    return;
+  }
+  if (!data || data.length === 0) return;
+
+  const { error: removeError } = await admin.storage
+    .from("avatars")
+    .remove(data.map((object) => `${userId}/${object.name}`));
+  if (removeError) {
+    console.warn("Could not remove avatar:", removeError);
+  }
+}
+
 async function handleDeleteAccount(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     throw new HttpError(405, "Method not allowed.", "method_not_allowed");
@@ -224,6 +246,8 @@ async function handleDeleteAccount(req: Request): Promise<Response> {
   if (billingDeleteError) {
     console.warn("Could not delete BillingCustomer row:", billingDeleteError);
   }
+
+  await deleteUserAvatar(admin, user.id);
 
   const { error: authDeleteError } = await admin.auth.admin.deleteUser(user.id);
   if (authDeleteError) {

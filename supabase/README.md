@@ -754,3 +754,5 @@ changes; this list is the contract for any remaining screens and for review.)
 - `20261110000100_insight_feedback.sql` — owner-confirmed insight feedback labels, household RLS and realtime publication.
 
 - `20261110000200_user_profile.sql` — user notification preferences and the `update_display_name` RPC.
+
+- `20261110000300_avatars.sql` — public-read, owner-write profile avatar bucket and policies.

@@ -26,6 +26,7 @@ import { ageYearsFromDateOfBirth, dogAgeLabel } from "../lib/dogProfile.ts";
 import { summarizePotty } from "../lib/pottyTraining.ts";
 import { buildHealthBaseline } from "../lib/healthBaseline.ts";
 import { recordInsightFeedback } from "../lib/insightFeedbackApi.ts";
+import { isDemoDog, resetDemoData } from "../lib/demoData.ts";
 import PottyDashboard from "../components/PottyDashboard.tsx";
 import HealthInsights from "../components/HealthInsights.tsx";
 
@@ -130,6 +131,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
   const [weightError, setWeightError] = useState<string | null>(null);
   const [weightPending, setWeightPending] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [resettingDemo, setResettingDemo] = useState(false);
 
   const sortedEvents = [...props.events].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
@@ -155,6 +157,27 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
     const file = e.target.files?.[0] ?? null;
     setNewDogImageFile(file);
     setPreviewUrl(file ? URL.createObjectURL(file) : null);
+  }
+
+  async function handleResetDemo() {
+    if (
+      resettingDemo ||
+      !window.confirm(
+        "Reset the demo history? This replaces the sample events and weights for this dog.",
+      )
+    ) {
+      return;
+    }
+    setResettingDemo(true);
+    try {
+      await resetDemoData(props.dog, props.userIdInDB);
+      props.onSave();
+    } catch (error) {
+      console.error("Error resetting demo data:", error);
+      setSaveError("Couldn't reset the demo data. Please try again.");
+    } finally {
+      setResettingDemo(false);
+    }
   }
 
   function handleCancelEdit() {
@@ -359,9 +382,16 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
 
               {/* Info */}
               <div className="flex-1">
-                <h2 className="text-2xl font-bold text-warm-brown mb-3">
-                  {props.dog.dogName}
-                </h2>
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <h2 className="text-2xl font-bold text-warm-brown">
+                    {props.dog.dogName}
+                  </h2>
+                  {isDemoDog(props.dog) && (
+                    <span className="rounded-full bg-light-tan px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-warm-brown">
+                      Demo data
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex flex-wrap gap-3">
                   {props.dog.breed && (
@@ -415,6 +445,17 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
                 </div>
               </div>
             </div>
+
+            {isDemoDog(props.dog) && (
+              <button
+                type="button"
+                onClick={() => void handleResetDemo()}
+                disabled={resettingDemo}
+                className="mb-2 w-full text-center text-xs font-medium text-text-muted underline underline-offset-2 hover:text-warm-brown disabled:opacity-50"
+              >
+                {resettingDemo ? "Resetting demo…" : "Reset demo history"}
+              </button>
+            )}
 
             <div className="flex gap-2">
               <button

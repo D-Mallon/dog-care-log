@@ -6,6 +6,8 @@ import type { CareUrgency } from "../lib/careStatus.ts";
 type DogStatusCardProps = {
   dogName: string;
   dogImage: string;
+  isDemo?: boolean;
+  insightCount?: number;
   lastFedHours: string;
   lastWalkMinutes: string;
   lastToiletHours: string;
@@ -96,9 +98,21 @@ export default function DogStatusCard(props: DogStatusCardProps) {
               🐾
             </span>
           )}
-          <span>
-            <span className="block text-xl font-bold font-fraunces leading-tight text-warm-brown">
-              {props.dogName}
+          <span className="min-w-0">
+            <span className="flex flex-wrap items-center gap-1.5">
+              <span className="block text-xl font-bold font-fraunces leading-tight text-warm-brown">
+                {props.dogName}
+              </span>
+              {props.isDemo && (
+                <span className="rounded-full bg-light-tan px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-warm-brown">
+                  Demo
+                </span>
+              )}
+              {Boolean(props.insightCount) && (
+                <span className="rounded-full bg-[#eef3e9] px-1.5 py-0.5 text-[9px] font-bold text-[#52684b]">
+                  {props.insightCount} {props.insightCount === 1 ? "change" : "changes"}
+                </span>
+              )}
             </span>
             <span className="block text-xs text-text-muted">
               {props.numOfEventsToday} events logged today
@@ -184,10 +198,13 @@ export default function DogStatusCard(props: DogStatusCardProps) {
               aria-label={`Quick log: ${quickLog.label}`}
               aria-busy={isBusy}
               title={`Quick log: ${quickLog.label}`}
-              className={`py-2 rounded-lg active:scale-95 transition-all disabled:opacity-50 ${quickLog.className}`}
+              className={`flex min-h-[48px] flex-col items-center justify-center rounded-xl py-1.5 active:scale-95 transition-all disabled:opacity-50 ${quickLog.className}`}
             >
-              <span className="text-xl" aria-hidden="true">
+              <span className="block text-lg leading-none" aria-hidden="true">
                 {quickLog.emoji}
+              </span>
+              <span className="mt-1 block text-[10px] font-semibold leading-none">
+                {quickLog.label}
               </span>
             </button>
           ))}
@@ -199,7 +216,7 @@ export default function DogStatusCard(props: DogStatusCardProps) {
         className="w-full py-2.5 rounded-xl text-sm font-medium bg-light-tan text-warm-brown hover:opacity-80 active:scale-95 transition-all duration-150"
         onClick={props.onLogEvent}
       >
-        Log event for {props.dogName}
+        Log care for {props.dogName}
       </button>
     </div>
   );
