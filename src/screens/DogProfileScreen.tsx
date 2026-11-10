@@ -467,7 +467,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
               <button
                 onClick={handleExport}
                 className="py-2.5 px-4 rounded-xl text-sm font-medium text-warm-brown border border-warm-brown/20 hover:bg-light-tan"
-                title="Export data as CSV"
+                title="Download a care report"
               >
                 📥
               </button>
