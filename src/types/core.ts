@@ -140,3 +140,12 @@ export interface EventComment {
   body: string;
   createdAt: string;
 }
+
+export interface UserPreference {
+  userId: string;
+  emailReminders: boolean;
+  weeklySummary: boolean;
+  productUpdates: boolean;
+  timezone: string;
+  updatedAt?: string;
+}

@@ -11,6 +11,7 @@ type AccountScreenProps = {
   onExport: () => void;
   onDelete: () => Promise<boolean>;
   onBack: () => void;
+  onOpenProfile?: () => void;
 };
 
 export default function AccountScreen({
@@ -23,6 +24,7 @@ export default function AccountScreen({
   onExport,
   onDelete,
   onBack,
+  onOpenProfile,
 }: AccountScreenProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmation, setConfirmation] = useState("");
@@ -59,6 +61,25 @@ export default function AccountScreen({
           Account & data
         </h1>
       </div>
+
+      {onOpenProfile && (
+        <section className="mb-6 rounded-3xl border border-warm-brown/10 bg-white p-5">
+          <h2 className="mb-1 text-lg font-bold font-fraunces text-warm-brown">
+            Your profile
+          </h2>
+          <p className="mb-4 text-xs leading-relaxed text-text-muted">
+            Change your display name, email, password and notification
+            preferences.
+          </p>
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            className="w-full rounded-xl bg-warm-brown py-3 text-sm font-semibold text-white hover:opacity-90"
+          >
+            Edit profile & settings
+          </button>
+        </section>
+      )}
 
       <section className="mb-6 rounded-3xl border border-warm-brown/10 bg-white p-5">
         <h2 className="mb-3 text-lg font-bold font-fraunces text-warm-brown">
