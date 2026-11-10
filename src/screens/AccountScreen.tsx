@@ -109,18 +109,18 @@ export default function AccountScreen({
 
       <section className="mb-6 rounded-3xl border border-warm-brown/10 bg-white p-5">
         <h2 className="mb-1 text-lg font-bold font-fraunces text-warm-brown">
-          Export your data
+          Download a care report
         </h2>
         <p className="mb-4 text-xs leading-relaxed text-text-muted">
-          Download every dog in {householdName}, with care events and weight
-          history, as a CSV you can open in Excel or Numbers.
+          Get every dog in {householdName} — care events and weight history — in
+          one simple file you can open in a spreadsheet or share with your vet.
         </p>
         <button
           type="button"
           onClick={onExport}
           className="w-full rounded-xl border border-warm-brown/20 py-3 text-sm font-semibold text-warm-brown hover:bg-light-tan"
         >
-          Download household CSV
+          Download household report
         </button>
       </section>
 

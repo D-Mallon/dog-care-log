@@ -36,7 +36,7 @@ const PLANS: PlanCard[] = [
       "Unlimited household members",
       "Full care history",
       "Potty insights",
-      "Vet-ready CSV export",
+      "A care report you can share with your vet",
     ],
   },
   {
@@ -44,27 +44,27 @@ const PLANS: PlanCard[] = [
     name: "Household yearly",
     price: "€29",
     cadence: "per year",
-    blurb: "Save over 35% versus monthly.",
+    blurb: "The best value if Loggi becomes part of your routine.",
     badge: "Best value",
     features: [
-      "Everything in monthly",
-      "Two months free",
-      "Priority support",
-      "Founding-member pricing locked in",
+      "Everything in the Household plan",
+      "Save €18.88 a year",
+      "One payment for the year",
+      "Email support when you need it",
     ],
   },
   {
     id: "lifetime",
-    name: "Founding member",
+    name: "Founding household",
     price: "€79",
     cadence: "one-time",
-    blurb: "Limited to the first 50 households.",
-    badge: "First 50",
+    blurb: "A one-off launch offer for early households.",
+    badge: "One-off",
     features: [
-      "Lifetime access",
-      "Concierge onboarding",
-      "Direct line to the founder",
-      "All future household features",
+      "Lifetime access for your household",
+      "Everything in the yearly plan",
+      "New household features included as they arrive",
+      "Your suggestions help shape what we build next",
     ],
   },
 ];
@@ -92,15 +92,15 @@ export default function PricingScreen({
 
       <div className="mb-8">
         <p className="text-xs font-semibold tracking-widest uppercase text-text-muted mb-1">
-          one plan for the whole pack
+          one household, one plan
         </p>
         <h1 className="text-4xl font-bold font-fraunces text-warm-brown">
-          Keep Loggi running
+          Simple plans for your household
         </h1>
         <p className="text-sm text-text-muted mt-3 leading-relaxed">
-          Free includes one dog and core logging. Premium unlocks unlimited
-          dogs and supports the project. Every plan covers your whole household
-          — no ads, no selling your data, cancel any time.
+          Free covers one dog and the basics. The Household plan adds unlimited
+          dogs, shared routines and the full picture. One plan covers everyone
+          in your household — no ads, no selling your data, cancel any time.
         </p>
       </div>
 
@@ -146,7 +146,7 @@ export default function PricingScreen({
       {!isOwner && !isEntitled && (
         <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           Ask the household owner to start a plan. One subscription covers
-          everyone in the pack.
+          everyone in your household.
         </div>
       )}
 
@@ -217,7 +217,7 @@ export default function PricingScreen({
                     : isLoading
                       ? "Opening checkout…"
                       : plan.id === "lifetime"
-                        ? "Become a founding member"
+                        ? "Choose founding household"
                         : "Start 14-day free trial"}
               </button>
             </section>
@@ -225,9 +225,14 @@ export default function PricingScreen({
         })}
       </div>
 
-      <p className="mt-6 text-center text-xs text-text-muted leading-relaxed">
+      <p className="mb-3 rounded-2xl bg-light-tan/60 p-4 text-center text-xs leading-relaxed text-text-muted">
+        Founding household is separate from the monthly and yearly plans: it is
+        a single one-time payment for lifetime access, not a subscription.
+      </p>
+
+      <p className="text-center text-xs text-text-muted leading-relaxed">
         Prices include VAT where applicable. Payments are handled by Stripe.
-        Annual plans renew automatically until cancelled.
+        Monthly and yearly plans renew automatically until cancelled.
       </p>
     </div>
   );

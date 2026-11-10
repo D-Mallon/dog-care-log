@@ -27,7 +27,7 @@ describe("AccountScreen", () => {
     expect(screen.getByText("Yearly")).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: /download household csv/i }),
+      screen.getByRole("button", { name: /download household report/i }),
     );
     expect(onExport).toHaveBeenCalledTimes(1);
   });
