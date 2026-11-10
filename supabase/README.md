@@ -752,3 +752,5 @@ changes; this list is the contract for any remaining screens and for review.)
     not attempt client-side billing writes.
 
 - `20261110000100_insight_feedback.sql` — owner-confirmed insight feedback labels, household RLS and realtime publication.
+
+- `20261110000200_user_profile.sql` — user notification preferences and the `update_display_name` RPC.

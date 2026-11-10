@@ -15,6 +15,7 @@ import EventReactions from "./components/EventReactions.tsx";
 import TodayPlan from "./components/TodayPlan.tsx";
 import WeeklyReport from "./components/WeeklyReport.tsx";
 import SchedulesScreen from "./screens/SchedulesScreen.tsx";
+import ProfileSettingsScreen from "./screens/ProfileSettingsScreen.tsx";
 import Modal from "./components/Modal.tsx";
 import OfflineBanner from "./components/OfflineBanner.tsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -94,6 +95,7 @@ type Screen =
   | "pricing"
   | "legal"
   | "account"
+  | "profile"
   | "weeklyReport"
   | "schedules";
 
@@ -1733,6 +1735,23 @@ function App() {
     );
   }
 
+  if (currentScreen === "profile") {
+    return (
+      <AppChrome
+        errorMessage={errorMessage}
+        onDismissError={() => setErrorMessage(null)}
+      >
+        <ProfileSettingsScreen
+          onBack={() => changeScreen("account")}
+          onOpenAccount={() => changeScreen("account")}
+          onUpdated={() =>
+            void loadHouseholdData(household, claims.sub ?? "")
+          }
+        />
+      </AppChrome>
+    );
+  }
+
   if (currentScreen === "account") {
     return (
       <AppChrome
@@ -1754,6 +1773,7 @@ function App() {
           onExport={handleExportAllData}
           onDelete={handleDeleteAccount}
           onBack={() => changeScreen("home")}
+          onOpenProfile={() => changeScreen("profile")}
         />
       </AppChrome>
     );
