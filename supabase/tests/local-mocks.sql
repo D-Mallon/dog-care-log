@@ -18,6 +18,16 @@ end $$;
 create schema if not exists auth;
 create schema if not exists storage;
 
+-- Minimal auth.users stand-in for CI. Production uses Supabase's real table;
+-- this only lets migrations that reference auth.users (for cascading profile
+-- preferences) run against a plain PostgreSQL database.
+create table if not exists auth.users (
+  id uuid primary key,
+  email text,
+  raw_user_meta_data jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 create or replace function auth.uid()
 returns uuid
 language sql
