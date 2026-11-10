@@ -5,6 +5,7 @@ import type { Household } from "../types/core.ts";
 type HouseholdSetupScreenProps = {
   userIdInDB: string;
   onHouseholdReady: (household: Household) => void;
+  onOpenProfile?: () => void;
 };
 
 export default function HouseholdSetupScreen(props: HouseholdSetupScreenProps) {

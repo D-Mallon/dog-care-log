@@ -13,6 +13,9 @@ export default {
         cream: "var(--cream)",
         "text-dark": "var(--text-dark)",
         "text-muted": "var(--text-muted)",
+        surface: "var(--surface)",
+        line: "var(--line)",
+        sage: "var(--muted-sage)",
       },
       boxShadow: {
         card: "0 4px 24px rgba(124, 62, 62, 0.08)",

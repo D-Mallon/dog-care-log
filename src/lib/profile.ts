@@ -12,6 +12,7 @@ export type AccountUser = {
   userId: string;
   email: string;
   displayName: string;
+  avatarUrl?: string;
 };
 
 const DEFAULT_TIMEZONE = "Europe/Dublin";
@@ -80,6 +81,8 @@ export async function loadAccountUser(): Promise<AccountUser> {
     userId: user.id,
     email: user.email ?? "",
     displayName: String(rawName || fallbackName).trim() || "Member",
+    avatarUrl:
+      typeof metadata.avatar_url === "string" ? metadata.avatar_url : undefined,
   };
 }
 
@@ -119,6 +122,26 @@ export async function loadPreferences(
     .insert({ userId, ...defaults })
     .select("*")
     .single();
+
+  if (insertError?.code === "23505") {
+    // StrictMode or a duplicate tab can race the first insert. Read the row
+    // that won instead of surfacing a scary error.
+    const { data: existing, error: existingError } = await supabase
+      .from("UserPreference")
+      .select("*")
+      .eq("userId", userId)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (existing) {
+      const preference = existing as UserPreference;
+      return {
+        emailReminders: preference.emailReminders,
+        weeklySummary: preference.weeklySummary,
+        productUpdates: preference.productUpdates,
+        timezone: preference.timezone || defaults.timezone,
+      };
+    }
+  }
 
   if (insertError) throw insertError;
   const preference = inserted as UserPreference;

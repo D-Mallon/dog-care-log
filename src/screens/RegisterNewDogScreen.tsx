@@ -168,10 +168,10 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
     <div className="pt-4">
       <div className="mb-8">
         <p className="text-xs font-semibold tracking-widest uppercase text-text-muted mb-1">
-          growing your pack
+          a new companion
         </p>
         <h1 className="text-4xl font-bold font-fraunces text-warm-brown m-0">
-          Add a Dog
+          Add a dog
         </h1>
         <p className="mt-2 text-sm text-text-muted">
           The basics take a minute. More detail helps Loggi understand your
@@ -518,7 +518,7 @@ export default function RegisterNewDogScreen(props: AddDogScreenProps) {
               : "bg-warm-brown text-white hover:opacity-90 active:scale-98"
           }`}
         >
-          {isSubmitting ? "Adding..." : "Add to your pack 🐾"}
+          {isSubmitting ? "Adding..." : "Add dog"}
         </button>
       </form>
     </div>
