@@ -273,7 +273,9 @@ export function groupTodayTasks(tasks: TodayTask[]): TodayTaskGroup[] {
   const groups = new Map<string, TodayTask[]>();
 
   for (const task of tasks) {
-    const groupId = task.schedule.groupId;
+    // Fallback keeps old data readable if the app is deployed before the
+    // schedule_groups migration has been applied.
+    const groupId = task.schedule.groupId || task.schedule.id;
     const current = groups.get(groupId);
     if (current) current.push(task);
     else groups.set(groupId, [task]);

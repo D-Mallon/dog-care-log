@@ -242,6 +242,18 @@ describe("groupTodayTasks", () => {
     expect(groups[0].title).toBe("Morning walk");
   });
 
+  it("falls back to the schedule id if groupId is missing (pre-migration data)", () => {
+    const schedule = makeSchedule({ id: "legacy-schedule" });
+    schedule.groupId = undefined as unknown as string;
+
+    const groups = groupTodayTasks(
+      getTodayPlan([schedule], [], MONDAY_NOON),
+    );
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].groupId).toBe("legacy-schedule");
+  });
+
   it("is done only when every dog in the group is done", () => {
     const a = makeSchedule({
       id: "schedule-a",

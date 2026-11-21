@@ -981,9 +981,10 @@ function App() {
 
   async function handleTakeTask(task: TodayTask) {
     if (!currentUserId) return;
-    const groupSchedules = schedules.filter(
-      (schedule) => schedule.groupId === task.schedule.groupId,
-    );
+    const groupKey = task.schedule.groupId;
+    const groupSchedules = groupKey
+      ? schedules.filter((schedule) => schedule.groupId === groupKey)
+      : [];
     const targets =
       groupSchedules.length > 0 ? groupSchedules : [task.schedule];
     const targetIds = new Set(targets.map((schedule) => schedule.id));

@@ -73,9 +73,10 @@ function buildGroups(schedules: CareSchedule[]): ScheduleGroup[] {
   const byGroup = new Map<string, CareSchedule[]>();
 
   for (const schedule of schedules) {
-    const current = byGroup.get(schedule.groupId);
+    const groupId = schedule.groupId || schedule.id;
+    const current = byGroup.get(groupId);
     if (current) current.push(schedule);
-    else byGroup.set(schedule.groupId, [schedule]);
+    else byGroup.set(groupId, [schedule]);
   }
 
   return [...byGroup.entries()]

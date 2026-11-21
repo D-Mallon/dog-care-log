@@ -525,7 +525,7 @@ Completed in the working tree (uncommitted, `release/mvp`):
 - [x] Backdated events, event editing, author/owner delete gating.
 - [x] Initial weight log, dedicated weight entry, corrected CSV export and potty insights.
 - [x] PWA manifest/icons/meta, accessible modal primitive, legal page, Vercel headers, WCAG AA muted text.
-- [x] Vitest unit and component suites (49 tests at the time; 169 now) and an esbuild parse check for all Edge Functions wired into CI; CI runs lint, typecheck, test, function check and build.
+- [x] Vitest unit and component suites (49 tests at the time; 170 now) and an esbuild parse check for all Edge Functions wired into CI; CI runs lint, typecheck, test, function check and build.
 - [x] README setup updated to `supabase/migrations/`; legacy destructive script explicitly deprecated.
 - [x] `.vercel/` removed from the git index; `vercel.json` headers added.
 - [x] Self-serve account deletion Edge Function and Account & data screen with full household CSV export.
@@ -831,7 +831,7 @@ engine and the current (non-trained) ML status.
 
 ### Verification run — 19 November 2026
 
-- `npm run lint`, `npm run typecheck`, `npm test` (169 tests),
+- `npm run lint`, `npm run typecheck`, `npm test` (170 tests),
   `npm run check:functions` and `npm run build` pass.
 - `npm run test:e2e` passes both Playwright smoke tests.
 - All 11 migrations, `free-plan-rls.sql` and `retention-rls.sql` pass on a
