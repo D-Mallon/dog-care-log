@@ -794,8 +794,9 @@ work.
       shows the domain verified (DKIM/SPF/DMARC records are live), the
       templates are in Supabase, and the Resend API key has been re-entered.
 - [ ] Test email confirmation if it is enabled, and test email change.
-- [ ] Deploy the v0.6.0 code. Production still serves the old v0.5.1 bundle
-      with the legal placeholders; the fixes in this branch are uncommitted.
+- [ ] Deploy the v0.6.0 code. PR #11 (`feat/launch-readiness`) is open with
+      green CI and a Vercel preview. Production still serves the old v0.5.1
+      bundle with the legal placeholders; merge only after the preview QA.
 - [ ] Decide on VAT registration and Stripe Tax; if enabling, set
       `STRIPE_AUTOMATIC_TAX=true` and run the tax scenarios. If not, keep the
       current neutral pricing copy and document the position.
