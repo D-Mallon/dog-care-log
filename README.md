@@ -2,11 +2,11 @@
 
 Loggi is a Progressive Web App for households that share dog care. Everyone who looks after the dog uses the same household, so feeding, walks, toilet breaks, medication, weight and notes stay in one place — and every member can see who logged what.
 
-**Release 1 (v0.1.0)** is the first paid release. `release/mvp` is the integration branch and `main` is production. The full scope, decisions and open questions live in [plan.md](plan.md).
+**v0.5.1 is the current production release; `v0.6.0` is the next release in this branch.** `main` is production and deploys through Vercel. The full scope, decisions and open questions live in [plan.md](plan.md). The [QA checklist](docs/qa.md) is the gate for calling a feature shipped.
 
 ## Release 1 target scope
 
-**Status:** `release/mvp` is the integration branch and this is the Release 1 target contract, not a claim that every item is already merged to `main`. Check [plan.md](plan.md) for current progress. The [QA checklist](docs/qa.md) is the gate for calling a feature shipped.
+**Status:** this is the Release 1 contract, not a claim that every item is finished for a paid public launch. The core product is implemented; the remaining commercial-launch work is tracked in [plan.md](plan.md) and [docs/deploy.md](docs/deploy.md).
 
 ### Households and collaboration
 
@@ -26,6 +26,7 @@ Loggi is a Progressive Web App for households that share dog care. Everyone who 
 - Pending states and duplicate prevention for quick logs.
 - Today's timeline and per-dog history.
 - Overdue cues for feed, walk, toilet and medication.
+- Shared routines that can cover one or several dogs; one completion marks the whole group done, and routines can be edited, paused or deleted.
 - Potty predictions that report "due" or "overdue" rather than a bare average.
 - Initial weight when a dog is added, plus a dedicated weight entry and weight history.
 - CSV export of events and weight history, with correct escaping for Excel and Numbers.
@@ -33,7 +34,7 @@ Loggi is a Progressive Web App for households that share dog care. Everyone who 
 ### Billing (Stripe, test mode until launch sign-off)
 
 - Hosted Stripe Checkout for monthly, yearly and founding lifetime plans.
-- 14-day trial and promotion codes. VAT-inclusive pricing/Stripe Tax is a launch configuration item — see [docs/stripe-setup.md](docs/stripe-setup.md).
+- 14-day trial and promotion codes. Stripe Tax is **optional and not free**; it is wired behind the `STRIPE_AUTOMATIC_TAX` secret and documented in [docs/stripe-setup.md](docs/stripe-setup.md#122-stripe-tax--vat).
 - Customer Portal for payment methods, invoices and cancellation.
 - Household-level entitlement: one subscription covers every member.
 - Free plan includes one dog and core logging; premium unlocks unlimited dogs (enforced in the UI and by RLS).
@@ -44,7 +45,7 @@ Loggi is a Progressive Web App for households that share dog care. Everyone who 
 - Installable PWA on iOS, Android and desktop.
 - Offline app shell and read cache with a clear offline state.
 - Keyboard-accessible modals, labelled forms, alt text and WCAG AA body-text contrast.
-- Privacy policy, terms, refund policy, per-dog and household data export, and self-serve account deletion.
+- Privacy policy and terms (reachable before sign-up), per-dog and household data export, and self-serve account deletion.
 
 ## Not in Release 1
 
@@ -59,9 +60,12 @@ To keep the launch honest, these are explicitly out of scope:
 
 ## Before taking live payments
 
-- Replace the `[COMPANY NAME]`, `[CONTACT EMAIL]` and `[REGISTERED ADDRESS]` placeholders in [`LegalScreen.tsx`](src/screens/LegalScreen.tsx).
-- Have the privacy, terms and refund copy reviewed for your entity and VAT position.
+- Have the plain-language privacy and terms copy in [`LegalScreen.tsx`](src/screens/LegalScreen.tsx) reviewed for your entity, consumer-law and VAT position. The company/contact placeholders have been removed; the current contact channel is the in-app support form.
+- Configure custom SMTP before inviting real users. Supabase's built-in mailer only delivers to project team addresses and is limited to 2 messages/hour — see [docs/email-setup.md](docs/email-setup.md).
+- Stripe Tax is deliberately **off for now**: it costs per transaction and Loggi is pre-revenue. Keep the neutral pricing copy and revisit VAT after the first paying cohort — see [docs/stripe-setup.md](docs/stripe-setup.md#122-stripe-tax--vat).
+- Settle the VAT position before live billing. If Loggi is VAT-registered, consumer prices must be displayed **VAT-inclusive**; if it is below the services threshold, do not claim VAT is included. See [VAT-inclusive consumer pricing](docs/stripe-setup.md#1221-vat-inclusive-consumer-pricing).
 - Complete the Stripe live-mode checklist in [`docs/stripe-setup.md`](docs/stripe-setup.md).
+- Add monitoring/uptime (Sentry or equivalent) and confirm backups.
 - Run the QA checklist in [`docs/qa.md`](docs/qa.md) on a preview deployment.
 
 ## Tech stack
@@ -71,6 +75,7 @@ To keep the launch honest, these are explicitly out of scope:
 - **Auth:** Supabase Auth UI
 - **Billing:** Stripe Checkout, Customer Portal and signed webhooks
 - **PWA:** `vite-plugin-pwa`
+- **Browser smoke tests:** Playwright (`npm run test:e2e`)
 
 ## Prerequisites
 
@@ -86,7 +91,7 @@ To keep the launch honest, these are explicitly out of scope:
 ```bash
 git clone <repository-url>
 cd dog-care-log
-git switch release/mvp
+git switch main
 npm install
 ```
 
@@ -190,6 +195,17 @@ In **Authentication → URL Configuration**:
 
 Keep the list as narrow as practical. Password-recovery links must land on an allowed redirect URL; the app listens for Supabase's `PASSWORD_RECOVERY` event and shows the update-password form.
 
+### Custom SMTP (required before real users)
+
+Supabase's built-in mailer only sends to project team addresses and is limited
+to 2 messages/hour, so password resets will not reach real users without a
+custom SMTP provider. Resend's free tier is enough for the first cohort. See
+[docs/email-setup.md](docs/email-setup.md) for the SMTP settings, DNS records,
+branded templates and the verification checklist.
+
+The templates are checked in under [`supabase/templates/`](supabase/templates)
+and referenced by [`supabase/config.toml`](supabase/config.toml).
+
 ### Email confirmation for local development
 
 Email/password auth is enabled under **Authentication → Providers → Email**.
@@ -206,33 +222,40 @@ Email/password auth is enabled under **Authentication → Providers → Email**.
 | `npm run build` | Typecheck with `tsc -b`, then build the production bundle with Vite. This is the release gate. |
 | `npm run lint` | Run ESLint over the repository. |
 | `npm run typecheck` | Run `tsc -b --pretty false` without emitting a bundle. |
+| `npm test` | Run the Vitest unit/component suite. |
+| `npm run test:e2e` | Build and run the Playwright unauthenticated-shell smoke tests. |
+| `npm run setup:smtp` | Dry-run (or apply, with `SMTP_APPLY=true`) the Resend SMTP config via the Supabase Management API. |
 | `npm run preview` | Serve the built `dist/` locally with Vite preview. |
 
 ## Branch and release workflow
 
+`main` is both the integration branch and production. Use short-lived branches
+and pull requests; Vercel creates a preview deployment for each pull request.
+
 ```text
-main (production)
-  └── release/mvp (integration + Vercel preview)
-        ├── fix/...
-        ├── feat/...
-        └── chore/...
+main (production + integration)
+  ├── fix/...
+  ├── feat/...
+  └── chore/...
 ```
 
-1. Branch from `release/mvp` for every change (`git switch -c fix/short-description release/mvp`).
-2. Open a pull request into `release/mvp`. CI runs lint, typecheck and build on every pull request.
-3. Open (or refresh) the pull request from `release/mvp` to `main`. Vercel creates a preview deployment from it.
-4. Run the two-user and Stripe test-mode QA in [docs/qa.md](docs/qa.md) against the preview.
-5. Merge to `main` only after QA passes. Vercel deploys `main` to production.
-6. Tag the release:
+1. Branch from `main` (`git switch -c fix/short-description main`).
+2. Open a pull request into `main`. CI runs lint, typecheck, unit tests,
+   Edge Function parsing, the production build, the database/RLS jobs and the
+   Playwright smoke test.
+3. Run the two-user and Stripe test-mode QA in [docs/qa.md](docs/qa.md) against
+   the Vercel preview.
+4. Merge to `main` only after QA passes. Vercel deploys `main` to production.
+5. Tag the release:
 
    ```bash
    git switch main
    git pull --ff-only
-   git tag -a v0.1.0 -m "Loggi v0.1.0 — Release 1"
-   git push origin v0.1.0
+   git tag -a v0.6.0 -m "Loggi v0.6.0"
+   git push origin v0.6.0
    ```
 
-Keep `main` deployable at all times. The CI workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml): it runs `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run check:functions` and `npm run build` on pull requests and on pushes to `main` and `release/mvp`. A second job applies every migration to PostgreSQL 16 with mocked `auth`/`storage` schemas and runs the free-plan/RLS checks.
+Keep `main` deployable at all times. The CI workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml): it runs `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run check:functions` and `npm run build` on pull requests and pushes to `main`. A database job applies every migration to PostgreSQL 16 with mocked `auth`/`storage` schemas and runs the free-plan **and** retention/social RLS checks. A separate job runs the Playwright browser smoke tests.
 
 ## Deployment
 
@@ -246,7 +269,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY
 VITE_APP_URL
 ```
 
-Stripe secrets are set with `supabase secrets set` and must never be added to Vercel or committed.
+Stripe secrets are set with `supabase secrets set` and must never be added to Vercel or committed. Add `STRIPE_AUTOMATIC_TAX=true` only after tax registrations and prices are ready; leaving it unset keeps Checkout tax-free. Custom SMTP is configured in Supabase Auth, not Vercel — see [docs/email-setup.md](docs/email-setup.md).
 
 ## PWA and offline behaviour (honest version)
 
@@ -260,7 +283,7 @@ Install on iOS Safari via **Share → Add to Home Screen**; on Android Chrome vi
 
 ## Repository hygiene
 
-- Never commit `.env`, service-role keys, Stripe secret keys or webhook signing secrets.
+- Never commit `.env`, service-role keys, Stripe secret keys, webhook signing secrets, Resend/SMTP API keys or Supabase access tokens.
 - `.vercel/` is generated by the Vercel CLI and must never be tracked. If `git ls-files .vercel` prints anything, remove it from the Git index (without deleting the local folder) and commit the removal:
 
   ```bash
@@ -275,20 +298,28 @@ Install on iOS Safari via **Share → Add to Home Screen**; on Android Chrome vi
 
 ```text
 src/
-  App.tsx              # App shell, routing and session/household state
-  components/          # Shared UI components
-  screens/             # Auth, household setup, logging, dog profile
-  lib/                 # Supabase client, data access, env validation, helpers
-  types/               # Shared domain types
+  App.tsx              # App shell, screen wiring and session/household state
+  components/          # Shared UI components, including AppChrome and ConfirmDialog
+  screens/             # Auth, household setup, logging, legal, dog profile
+  lib/                 # Supabase client, data access, history, env validation, helpers
+  types/               # Shared domain and navigation types
 supabase/
   migrations/          # Versioned SQL migrations (source of truth)
   functions/           # Stripe billing and account-deletion Edge Functions
+  templates/           # Branded auth email templates
+  tests/               # Migration, free-plan and retention/social RLS checks
+e2e/
+  auth-legal.spec.ts   # Playwright smoke test for the unauthenticated shell
 docs/
   qa.md                # Two-user manual QA checklist
   deploy.md            # Deployment and rollback runbook
   stripe-setup.md      # Stripe products, secrets, webhook and test cards
+  email-setup.md       # Resend/SMTP, auth templates and email verification
+  domain-setup.md      # Domain availability, registrar prices and choice
+  insights.md          # Rule-based baseline, potty windows and ML status
+  go-to-market.md      # Trial acquisition, content and paid-ads plan
 .github/workflows/
-  ci.yml               # Lint, typecheck and build on PRs and release branches
+  ci.yml               # Verify, database/RLS and browser-smoke jobs
 ```
 
 ## Documentation
@@ -297,6 +328,10 @@ docs/
 - [docs/qa.md](docs/qa.md) — two-user QA checklist, Stripe test-mode flows and RLS negative cases.
 - [docs/deploy.md](docs/deploy.md) — deployment, backup and rollback runbook.
 - [docs/stripe-setup.md](docs/stripe-setup.md) — Stripe test-mode setup and verification.
+- [docs/email-setup.md](docs/email-setup.md) — custom SMTP, templates and email verification.
+- [docs/domain-setup.md](docs/domain-setup.md) — domain availability, registrar prices and the recommended name.
+- [docs/insights.md](docs/insights.md) — how the baseline, potty windows and commentary actually work.
+- [docs/go-to-market.md](docs/go-to-market.md) — trial sourcing, content calendar and ad-automation limits.
 
 ## License
 

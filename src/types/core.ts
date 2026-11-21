@@ -104,6 +104,7 @@ export type ScheduleRecurrence =
 export interface CareSchedule {
   id: string;
   householdId: string;
+  groupId: string;
   dogId: string;
   type: EventType;
   title: string;

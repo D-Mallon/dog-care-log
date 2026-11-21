@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CareSchedule, CareTaskCompletion } from "../../types/core.ts";
-import { getTodayPlan, toLocalDateKey } from "../schedules.ts";
+import { getTodayPlan, groupTodayTasks, toLocalDateKey } from "../schedules.ts";
 
 // 9 November 2026 is a Monday; 14/15 November are Saturday/Sunday.
 const MONDAY_NOON = new Date(2026, 10, 9, 12, 0, 0);
@@ -15,6 +15,7 @@ function makeSchedule(overrides: Partial<CareSchedule> = {}): CareSchedule {
   return {
     id: `schedule-${idCounter}`,
     householdId: "household-1",
+    groupId: `group-${idCounter}`,
     dogId: "dog-1",
     type: "walk",
     title: "Morning walk",
@@ -217,5 +218,58 @@ describe("getTodayPlan", () => {
     ];
 
     expect(getTodayPlan(invalid, [], MONDAY_NOON)).toEqual([]);
+  });
+});
+
+
+describe("groupTodayTasks", () => {
+  it("treats one routine across several dogs as one task", () => {
+    const a = makeSchedule({
+      id: "schedule-a",
+      groupId: "walk-all",
+      dogId: "dog-1",
+    });
+    const b = makeSchedule({
+      id: "schedule-b",
+      groupId: "walk-all",
+      dogId: "dog-2",
+    });
+
+    const groups = groupTodayTasks(getTodayPlan([a, b], [], MONDAY_NOON));
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].dogIds).toEqual(["dog-1", "dog-2"]);
+    expect(groups[0].title).toBe("Morning walk");
+  });
+
+  it("is done only when every dog in the group is done", () => {
+    const a = makeSchedule({
+      id: "schedule-a",
+      groupId: "walk-all",
+      dogId: "dog-1",
+    });
+    const b = makeSchedule({
+      id: "schedule-b",
+      groupId: "walk-all",
+      dogId: "dog-2",
+    });
+    const oneDone = makeCompletion({
+      scheduleId: "schedule-a",
+      dueDate: "2026-11-09",
+    });
+
+    const partial = groupTodayTasks(
+      getTodayPlan([a, b], [oneDone], MONDAY_NOON),
+    );
+    expect(partial[0].status).toBe("overdue");
+
+    const bothDone = [
+      oneDone,
+      makeCompletion({ scheduleId: "schedule-b", dueDate: "2026-11-09" }),
+    ];
+    const done = groupTodayTasks(
+      getTodayPlan([a, b], bothDone, MONDAY_NOON),
+    );
+    expect(done[0].status).toBe("done");
   });
 });

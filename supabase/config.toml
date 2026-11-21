@@ -22,3 +22,42 @@ verify_jwt = false
 
 [functions.delete-account]
 verify_jwt = true
+
+# ---------------------------------------------------------------------------
+# Auth email templates
+# ---------------------------------------------------------------------------
+# These are the branded templates checked in under supabase/templates/. They
+# apply to the local stack now. For the hosted project, copy the same content
+# into Dashboard -> Authentication -> Email Templates, or run
+# `npx supabase config push` after linking.
+[auth.email.template.confirmation]
+subject = "Confirm your Loggi email"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Reset your Loggi password"
+content_path = "./supabase/templates/recovery.html"
+
+[auth.email.template.magic_link]
+subject = "Sign in to Loggi"
+content_path = "./supabase/templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "Confirm your new Loggi email"
+content_path = "./supabase/templates/email_change.html"
+
+# ---------------------------------------------------------------------------
+# Custom SMTP (hosted project: Dashboard -> Authentication -> SMTP)
+# ---------------------------------------------------------------------------
+# Do not enable this without the environment variable set. The default
+# Supabase SMTP only delivers to project team addresses and is limited to
+# 2 messages/hour, so it is not suitable for real users.
+#
+# [auth.email.smtp]
+# enabled = true
+# host = "smtp.resend.com"
+# port = 465
+# user = "resend"
+# pass = "env(SUPABASE_AUTH_SMTP_PASS)"
+# admin_email = "no-reply@your-loggi-domain.example"
+# sender_name = "Loggi"

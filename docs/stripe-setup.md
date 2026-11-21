@@ -111,6 +111,9 @@ supabase secrets set --project-ref <project-ref> \
   STRIPE_PRICE_YEARLY=price_... \
   STRIPE_PRICE_LIFETIME=price_... \
   APP_URL=http://localhost:5173
+
+# Optional, only after tax registrations and price tax behaviour are ready:
+# supabase secrets set --project-ref <project-ref> STRIPE_AUTOMATIC_TAX=true
 ```
 
 | Secret | Used by | Notes |
@@ -121,6 +124,7 @@ supabase secrets set --project-ref <project-ref> \
 | `STRIPE_PRICE_YEARLY` | checkout, webhook fallback | Stripe price ID |
 | `STRIPE_PRICE_LIFETIME` | checkout, webhook | Stripe one-time price ID |
 | `APP_URL` | checkout, portal | Public app origin used for success/cancel/return URLs |
+| `STRIPE_AUTOMATIC_TAX` | `create-checkout-session` | Optional. Set to `true` only after tax registrations and price tax behaviour are configured. Unset/false keeps Checkout tax-free. |
 
 `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `SUPABASE_ANON_KEY` (or
 `SUPABASE_PUBLISHABLE_KEY`) are injected by the Supabase Edge Function runtime.
@@ -559,16 +563,34 @@ for entitlement. This keeps the pricing screen fast and matches the plan's
 
 ### 12.2 Stripe Tax / VAT
 
-The Checkout code does **not** enable Stripe Tax or set `automatic_tax`; prices
-are whatever is configured in Stripe. Before advertising VAT-inclusive EU
-pricing, the integrator must:
+Checkout now supports Stripe Tax behind the `STRIPE_AUTOMATIC_TAX=true` secret.
+It is **off by default** for two reasons:
 
-1. Set tax behavior to inclusive on the Stripe prices.
-2. Register tax obligations in Stripe.
-3. Add `automatic_tax: { enabled: true }` (and, for existing customers,
-   `customer_update: { address: "auto" }`) to both Checkout Session branches in
-   `create-checkout-session/index.ts`.
-4. Re-run the test scenarios.
+1. **Stripe Tax is not free.** Tax Basic is billed per transaction — currently
+   0.5% for no-code Checkout, or a flat per-API-call fee (around €0.45/$0.50)
+   with the API integration. At €3.99/month, the API fee is a large share of
+   revenue. Check current Stripe pricing before enabling it.
+2. **Tax registrations are required.** Enabling `automatic_tax` without the
+   right registrations or price tax behaviour can produce zero tax, surprise
+   amounts, or Checkout errors.
+
+To enable it deliberately:
+
+1. Decide whether Loggi is registered/required to charge VAT in each market.
+2. Register the obligations in Stripe Tax.
+3. Set each price's tax behaviour to **inclusive** (or exclusive) to match the
+   displayed price.
+4. Set `STRIPE_AUTOMATIC_TAX=true` with `supabase secrets set`.
+5. Run the tax scenarios in §10 again and check the Stripe Tax report.
+
+If tax stays off, keep the pricing copy conditional. It currently says prices
+are in euro and, **if VAT applies, it is included in the price shown**. Do not
+advertise a flat "VAT included" claim until Loggi is actually registered and
+the Stripe prices are configured as tax-inclusive.
+
+**Current decision (20 November 2026): off.** Loggi is pre-revenue and Stripe
+Tax is a per-transaction cost; revisit after the first paying cohort and a VAT
+registration decision.
 
 ### 12.3 Trial length and pricing
 
@@ -673,3 +695,41 @@ Do not switch to live keys until the test-mode acceptance scenarios pass.
 - [ ] Check `"StripeEvent"` growth and plan retention.
 - [ ] Add a reconciliation runbook: compare Stripe active subscriptions with
       `"Subscription"` rows after the first live week.
+
+### 12.2.1 VAT-inclusive consumer pricing
+
+This is an accounting/legal decision, not just a Stripe setting. The short
+version:
+
+- **If Loggi is VAT-registered**, prices shown to consumers must include VAT.
+  Do not add VAT on top at Checkout; set the Stripe price tax behaviour to
+  **inclusive** and display “VAT included”.
+- **If Loggi is not VAT-registered**, there is no VAT to include. The current
+  conditional copy (“if VAT applies, it is included”) is safe; do not claim a
+  flat “VAT included” until registration.
+- **Irish services threshold:** the commonly cited VAT registration threshold
+  for services is **€42,500** over any 12 months (2025/2026). Confirm the current
+  figure and your position with an accountant; this document is not tax advice.
+- **EU cross-border digital sales** add another threshold and the OSS scheme.
+  Do not assume an Irish-only setup if you sell to EU consumers.
+
+At the current prices, treating them as VAT-inclusive at 23% gives approximately:
+
+| Displayed price | VAT portion (23/123) | Net before Stripe fees |
+| --- | --- | --- |
+| €3.99/month | ~€0.75 | ~€3.24 |
+| €29/year | ~€5.42 | ~€23.58 |
+| €79/lifetime | ~€14.77 | ~€64.23 |
+
+That matches the net figures in [market-analysis.md](market-analysis.md), before
+payment fees. If you want to preserve the old net, raise the gross prices; if
+you want to stay at €3.99/€29/€79, accept the lower net.
+
+Stripe Tax is **not required** to display VAT-inclusive prices. It automates
+calculation and collection. If you turn it off, you are responsible for the
+manual VAT calculation, invoices and filings. At low volume an accountant can
+handle that; at scale Stripe Tax (or another tool) is usually worth it.
+
+**Decision needed:** whether Loggi is VAT-registered now, and whether the
+current €3.99/€29/€79 prices are the gross (VAT-inclusive) prices. Once that is
+confirmed, update the pricing copy and the Stripe prices together.

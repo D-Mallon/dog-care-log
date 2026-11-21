@@ -67,9 +67,16 @@ describe("PricingScreen", () => {
       screen.getByRole("button", { name: /current plan/i }),
     ).toBeDisabled();
 
+    const changePlanButtons = screen.getAllByRole("button", {
+      name: /change plan in billing portal/i,
+    });
+    expect(changePlanButtons).toHaveLength(2);
+    await user.click(changePlanButtons[0]);
+    expect(onManageBilling).toHaveBeenCalledTimes(1);
+
     await user.click(
       screen.getByRole("button", { name: /manage billing and invoices/i }),
     );
-    expect(onManageBilling).toHaveBeenCalledTimes(1);
+    expect(onManageBilling).toHaveBeenCalledTimes(2);
   });
 });

@@ -8,13 +8,24 @@ import type {
 
 export type NewScheduleInput = {
   householdId: string;
-  dogId: string;
+  dogIds: string[];
   type: EventType;
   title: string;
   timeOfDay: string;
   recurrence: ScheduleRecurrence;
   assignedTo?: string | null;
   createdBy: string;
+  startDate?: string;
+  endDate?: string | null;
+};
+
+export type ScheduleUpdates = {
+  type?: EventType;
+  title?: string;
+  timeOfDay?: string;
+  recurrence?: ScheduleRecurrence;
+  active?: boolean;
+  assignedTo?: string | null;
   startDate?: string;
   endDate?: string | null;
 };
@@ -32,49 +43,134 @@ export async function listSchedules(
   return (data ?? []) as CareSchedule[];
 }
 
-export async function createSchedule(
+/**
+ * Create one routine that applies to one or more dogs.
+ *
+ * The database still stores one CareSchedule row per dog (keeping the existing
+ * per-dog RLS and reporting model), but all rows share a groupId so the UI can
+ * treat them as one task and complete them together.
+ */
+export async function createScheduleGroup(
   input: NewScheduleInput,
-): Promise<CareSchedule> {
-  const schedule: CareSchedule = {
+): Promise<CareSchedule[]> {
+  if (input.dogIds.length === 0) {
+    throw new Error("Choose at least one dog.");
+  }
+
+  const groupId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const rows = input.dogIds.map((dogId) => ({
     id: crypto.randomUUID(),
     householdId: input.householdId,
-    dogId: input.dogId,
+    groupId,
+    dogId,
     type: input.type,
     title: input.title.trim(),
     timeOfDay: input.timeOfDay,
     recurrence: input.recurrence,
     active: true,
-    assignedTo: input.assignedTo ?? undefined,
+    assignedTo: input.assignedTo ?? null,
     createdBy: input.createdBy,
+    createdAt: now,
     startDate: input.startDate,
-    endDate: input.endDate ?? undefined,
-  };
+    endDate: input.endDate ?? null,
+  }));
 
   const { data, error } = await supabase
     .from("CareSchedule")
-    .insert(schedule)
-    .select()
-    .single();
+    .insert(rows)
+    .select();
 
   if (error) throw error;
-  return data as CareSchedule;
+  return (data ?? []) as CareSchedule[];
 }
 
+async function getScheduleGroup(groupId: string): Promise<CareSchedule[]> {
+  const { data, error } = await supabase
+    .from("CareSchedule")
+    .select("*")
+    .eq("groupId", groupId)
+    .order("dogId", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as CareSchedule[];
+}
+
+/**
+ * Update a routine group, optionally adding/removing dogs.
+ *
+ * Removed dogs lose their schedule rows (and therefore their completions via
+ * cascade). New dogs get a row with the same groupId and the common fields.
+ */
+export async function updateScheduleGroup(
+  groupId: string,
+  updates: ScheduleUpdates,
+  dogIds?: string[],
+): Promise<CareSchedule[]> {
+  const existing = await getScheduleGroup(groupId);
+  if (existing.length === 0) {
+    throw new Error("That routine no longer exists.");
+  }
+
+  const base = existing[0];
+  const targetDogIds = dogIds ?? existing.map((schedule) => schedule.dogId);
+  if (targetDogIds.length === 0) {
+    throw new Error("Choose at least one dog.");
+  }
+
+  const { error: updateError } = await supabase
+    .from("CareSchedule")
+    .update(updates)
+    .eq("groupId", groupId);
+  if (updateError) throw updateError;
+
+  const existingDogIds = new Set(existing.map((schedule) => schedule.dogId));
+  const removed = existing.filter(
+    (schedule) => !targetDogIds.includes(schedule.dogId),
+  );
+
+  for (const schedule of removed) {
+    const { error } = await supabase
+      .from("CareSchedule")
+      .delete()
+      .eq("id", schedule.id);
+    if (error) throw error;
+  }
+
+  const added = targetDogIds.filter((dogId) => !existingDogIds.has(dogId));
+  if (added.length > 0) {
+    const rows = added.map((dogId) => ({
+      id: crypto.randomUUID(),
+      householdId: base.householdId,
+      groupId,
+      dogId,
+      type: updates.type ?? base.type,
+      title: (updates.title ?? base.title).trim(),
+      timeOfDay: updates.timeOfDay ?? base.timeOfDay,
+      recurrence: updates.recurrence ?? base.recurrence,
+      active: updates.active ?? base.active,
+      assignedTo:
+        updates.assignedTo !== undefined
+          ? updates.assignedTo
+          : (base.assignedTo ?? null),
+      createdBy: base.createdBy,
+      createdAt: new Date().toISOString(),
+      startDate: updates.startDate ?? base.startDate,
+      endDate:
+        updates.endDate !== undefined ? updates.endDate : (base.endDate ?? null),
+    }));
+
+    const { error } = await supabase.from("CareSchedule").insert(rows);
+    if (error) throw error;
+  }
+
+  return getScheduleGroup(groupId);
+}
+
+/** Update one existing row; used for activity toggles and assignments. */
 export async function updateSchedule(
   scheduleId: string,
-  updates: Partial<
-    Pick<
-      CareSchedule,
-      | "type"
-      | "title"
-      | "timeOfDay"
-      | "recurrence"
-      | "active"
-      | "assignedTo"
-      | "startDate"
-      | "endDate"
-    >
-  >,
+  updates: ScheduleUpdates,
 ): Promise<CareSchedule> {
   const { data, error } = await supabase
     .from("CareSchedule")
@@ -87,11 +183,11 @@ export async function updateSchedule(
   return data as CareSchedule;
 }
 
-export async function deleteSchedule(scheduleId: string): Promise<void> {
+export async function deleteScheduleGroup(groupId: string): Promise<void> {
   const { error } = await supabase
     .from("CareSchedule")
     .delete()
-    .eq("id", scheduleId);
+    .eq("groupId", groupId);
   if (error) throw error;
 }
 
@@ -113,25 +209,31 @@ export async function listCompletions(
   return (data ?? []) as CareTaskCompletion[];
 }
 
-export async function setTaskCompletion(
-  scheduleId: string,
+/**
+ * Complete or uncomplete a whole routine group for one due date.
+ *
+ * One statement per operation keeps a group atomic: either every dog's
+ * completion is written, or none is.
+ */
+export async function setTaskGroupCompletion(
+  scheduleIds: string[],
   dueDate: string,
   completed: boolean,
   userId: string,
 ): Promise<void> {
+  if (scheduleIds.length === 0) return;
+
   if (completed) {
-    const { error } = await supabase
-      .from("CareTaskCompletion")
-      .upsert(
-        {
-          id: crypto.randomUUID(),
-          scheduleId,
-          dueDate,
-          completedBy: userId,
-          completedAt: new Date().toISOString(),
-        },
-        { onConflict: "scheduleId,dueDate" },
-      );
+    const { error } = await supabase.from("CareTaskCompletion").upsert(
+      scheduleIds.map((scheduleId) => ({
+        id: crypto.randomUUID(),
+        scheduleId,
+        dueDate,
+        completedBy: userId,
+        completedAt: new Date().toISOString(),
+      })),
+      { onConflict: "scheduleId,dueDate" },
+    );
     if (error) throw error;
     return;
   }
@@ -139,7 +241,17 @@ export async function setTaskCompletion(
   const { error } = await supabase
     .from("CareTaskCompletion")
     .delete()
-    .eq("scheduleId", scheduleId)
+    .in("scheduleId", scheduleIds)
     .eq("dueDate", dueDate);
   if (error) throw error;
+}
+
+/** Single-schedule wrapper, kept for callers that only need one row. */
+export async function setTaskCompletion(
+  scheduleId: string,
+  dueDate: string,
+  completed: boolean,
+  userId: string,
+): Promise<void> {
+  return setTaskGroupCompletion([scheduleId], dueDate, completed, userId);
 }

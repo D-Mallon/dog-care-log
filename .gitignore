@@ -28,3 +28,9 @@ dist-ssr
 
 # Supabase CLI local state
 supabase/.temp/
+
+# Playwright output
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

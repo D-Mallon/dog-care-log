@@ -153,7 +153,7 @@ export default function PricingScreen({
       <div className="flex flex-col gap-4">
         {PLANS.map((plan) => {
           const isCurrent = currentPlan === plan.id && isEntitled;
-          const disabled = isLoading || !isOwner || isEntitled;
+          const disabled = isLoading || !isOwner || isCurrent;
 
           return (
             <section
@@ -202,7 +202,9 @@ export default function PricingScreen({
 
               <button
                 type="button"
-                onClick={() => onSelectPlan(plan.id)}
+                onClick={() =>
+                  isEntitled ? onManageBilling() : onSelectPlan(plan.id)
+                }
                 disabled={disabled}
                 className={`w-full rounded-xl py-3 text-sm font-semibold transition-colors ${
                   isCurrent
@@ -231,8 +233,9 @@ export default function PricingScreen({
       </p>
 
       <p className="text-center text-xs text-text-muted leading-relaxed">
-        Prices include VAT where applicable. Payments are handled by Stripe.
-        Monthly and yearly plans renew automatically until cancelled.
+        Prices are shown in euro. If VAT applies, it is included in the price
+        shown. Payments are handled securely by Stripe. Monthly and yearly
+        plans renew automatically until cancelled.
       </p>
     </div>
   );

@@ -1,3 +1,10 @@
+/**
+ * Feature snapshots for future offline analysis/models.
+ *
+ * NOT imported by any screen today. The app's visible commentary is the
+ * deterministic rule engine in `healthBaseline.ts` / `pottyTraining.ts`; see
+ * docs/insights.md for the current ML status.
+ */
 import type { CareEvent, Dog, PottyOutcome, WeightLog } from "../types/core.ts";
 
 /**

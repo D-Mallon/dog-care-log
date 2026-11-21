@@ -3,8 +3,8 @@
 --   psql ... -f supabase/tests/retention-rls.sql
 --
 -- This file creates its own users/households and leaves the database dirty; use
--- a throwaway database. It is not wired into CI because CI already applies
--- every migration and runs free-plan-rls.sql.
+-- a throwaway database. CI runs it after free-plan-rls.sql in the disposable
+-- PostgreSQL service, so order matters if you run the suite locally.
 
 \set ON_ERROR_STOP on
 
