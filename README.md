@@ -2,7 +2,7 @@
 
 Loggi is a Progressive Web App for households that share dog care. Everyone who looks after the dog uses the same household, so feeding, walks, toilet breaks, medication, weight and notes stay in one place — and every member can see who logged what.
 
-**v0.5.1 is the current production release; `v0.6.0` is the next release in this branch.** `main` is production and deploys through Vercel. The full scope, decisions and open questions live in [plan.md](plan.md). The [QA checklist](docs/qa.md) is the gate for calling a feature shipped.
+**v0.6.0 is the current production release.** `main` is production and deploys through Vercel. The full scope, decisions and open questions live in [plan.md](plan.md). The [QA checklist](docs/qa.md) is the gate for calling a feature shipped.
 
 ## Release 1 target scope
 
