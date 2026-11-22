@@ -525,7 +525,7 @@ Completed in the working tree (uncommitted, `release/mvp`):
 - [x] Backdated events, event editing, author/owner delete gating.
 - [x] Initial weight log, dedicated weight entry, corrected CSV export and potty insights.
 - [x] PWA manifest/icons/meta, accessible modal primitive, legal page, Vercel headers, WCAG AA muted text.
-- [x] Vitest unit and component suites (49 tests at the time; 170 now) and an esbuild parse check for all Edge Functions wired into CI; CI runs lint, typecheck, test, function check and build.
+- [x] Vitest unit and component suites (49 tests at the time; 172 now) and an esbuild parse check for all Edge Functions wired into CI; CI runs lint, typecheck, test, function check and build.
 - [x] README setup updated to `supabase/migrations/`; legacy destructive script explicitly deprecated.
 - [x] `.vercel/` removed from the git index; `vercel.json` headers added.
 - [x] Self-serve account deletion Edge Function and Account & data screen with full household CSV export.
@@ -798,6 +798,11 @@ work.
       `main` at `94f5e9d`; the production Vercel deployment and main CI passed,
       the live bundle no longer contains the legal placeholders, and `v0.6.0`
       is tagged.
+- [x] Fix schedule creation on production: the live schema lacked the
+      `startDate` default, so create failed with SQLSTATE 23502. PR #12 sets
+      `startDate` explicitly; deployed as `v0.6.1` (`f3eb47e`) and verified
+      through the production UI. The temporary QA account and household were
+      deleted.
 - [ ] Decide on VAT registration and Stripe Tax; if enabling, set
       `STRIPE_AUTOMATIC_TAX=true` and run the tax scenarios. If not, keep the
       current neutral pricing copy and document the position.
@@ -809,7 +814,7 @@ work.
       do a restore drill.
 - [ ] Decide whether signups stay open during the trial period or are gated to
       invited users.
-- [ ] Tag `v0.6.0` only after the above.
+- [ ] Tag `v0.6.1` only after the above (already tagged for the startDate fix).
 
 ### Decisions recorded — 20 November 2026
 
@@ -832,7 +837,7 @@ engine and the current (non-trained) ML status.
 
 ### Verification run — 19 November 2026
 
-- `npm run lint`, `npm run typecheck`, `npm test` (170 tests),
+- `npm run lint`, `npm run typecheck`, `npm test` (172 tests),
   `npm run check:functions` and `npm run build` pass.
 - `npm run test:e2e` passes both Playwright smoke tests.
 - All 11 migrations, `free-plan-rls.sql` and `retention-rls.sql` pass on a
