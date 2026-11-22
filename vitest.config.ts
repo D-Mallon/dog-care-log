@@ -9,5 +9,13 @@ export default defineConfig({
     restoreMocks: true,
     testTimeout: 15000,
     hookTimeout: 15000,
+    // Playwright specs live under e2e/ and must not be collected by Vitest.
+    exclude: [
+      "e2e/**",
+      "node_modules/**",
+      "dist/**",
+      "test-results/**",
+      "playwright-report/**",
+    ],
   },
 });

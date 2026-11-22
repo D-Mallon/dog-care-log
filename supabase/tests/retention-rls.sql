@@ -3,8 +3,8 @@
 --   psql ... -f supabase/tests/retention-rls.sql
 --
 -- This file creates its own users/households and leaves the database dirty; use
--- a throwaway database. It is not wired into CI because CI already applies
--- every migration and runs free-plan-rls.sql.
+-- a throwaway database. CI runs it after free-plan-rls.sql in the disposable
+-- PostgreSQL service, so order matters if you run the suite locally.
 
 \set ON_ERROR_STOP on
 
@@ -396,6 +396,97 @@ begin
     raise exception 'FAIL: owner could not moderate a reaction';
   end if;
   raise notice 'PASS: owner can moderate a reaction';
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- Multi-dog schedule groups
+-- ---------------------------------------------------------------------------
+-- The UI groups rows by groupId; the database still stores one row per dog.
+-- Household A already has one dog on the free plan, so entitle it first to
+-- allow the second dog. This is fixture setup, not an RLS assertion.
+reset role;
+insert into "Subscription" (id, "householdId", plan, status)
+values (
+  'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+  current_setting('test.household_a')::uuid,
+  'monthly',
+  'active'
+)
+on conflict do nothing;
+set role authenticated;
+
+insert into "Dogs" ("dogId", "dogName", "householdId")
+values (
+  'dddddddd-dddd-dddd-dddd-dddddddddddd',
+  'Second dog',
+  current_setting('test.household_a')::uuid
+);
+
+insert into "CareSchedule"
+  (id, "householdId", "dogId", type, title, "timeOfDay", recurrence, "createdBy", "groupId")
+values
+  (
+    'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+    current_setting('test.household_a')::uuid,
+    current_setting('test.dog_a')::uuid,
+    'walk',
+    'Walk all dogs',
+    '08:00',
+    'daily',
+    current_setting('request.jwt.claim.sub')::uuid,
+    'ffffffff-ffff-ffff-ffff-ffffffffffff'
+  ),
+  (
+    '11111111-2222-3333-4444-555555555555',
+    current_setting('test.household_a')::uuid,
+    'dddddddd-dddd-dddd-dddd-dddddddddddd',
+    'walk',
+    'Walk all dogs',
+    '08:00',
+    'daily',
+    current_setting('request.jwt.claim.sub')::uuid,
+    'ffffffff-ffff-ffff-ffff-ffffffffffff'
+  );
+
+do $$
+begin
+  if (select count(*) from "CareSchedule"
+      where "groupId" = 'ffffffff-ffff-ffff-ffff-ffffffffffff') <> 2 then
+    raise exception 'FAIL: multi-dog group did not create two rows';
+  end if;
+  if (select count(distinct "groupId") from "CareSchedule"
+      where title = 'Walk all dogs') <> 1 then
+    raise exception 'FAIL: multi-dog rows did not share a groupId';
+  end if;
+  raise notice 'PASS: multi-dog routine has one shared groupId';
+end $$;
+
+insert into "CareTaskCompletion"
+  (id, "scheduleId", "dueDate", "completedBy")
+values
+  (
+    '22222222-3333-4444-5555-666666666666',
+    'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+    current_date,
+    current_setting('request.jwt.claim.sub')::uuid
+  ),
+  (
+    '33333333-4444-5555-6666-777777777777',
+    '11111111-2222-3333-4444-555555555555',
+    current_date,
+    current_setting('request.jwt.claim.sub')::uuid
+  );
+
+do $$
+begin
+  if (select count(*) from "CareTaskCompletion"
+      where "scheduleId" in (
+        'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+        '11111111-2222-3333-4444-555555555555'
+      )) <> 2 then
+    raise exception 'FAIL: group completion did not write both dogs';
+  end if;
+  raise notice 'PASS: multi-dog group completion writes both dogs';
 end $$;
 
 -- ---------------------------------------------------------------------------

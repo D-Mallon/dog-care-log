@@ -3,6 +3,7 @@ import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { supabase } from "../lib/supabase.ts";
 import { env } from "../lib/env.ts";
 import { useEffect, useState } from "react";
+import type { LegalTab } from "./LegalScreen.tsx";
 
 type AuthView =
   | "sign_in"
@@ -13,11 +14,13 @@ type AuthView =
 type AuthScreenProps = {
   initialView?: AuthView;
   onPasswordUpdated?: () => void;
+  onOpenLegal?: (tab: LegalTab) => void;
 };
 
 export default function AuthScreen({
   initialView = "sign_in",
   onPasswordUpdated,
+  onOpenLegal,
 }: AuthScreenProps) {
   const [view, setView] = useState<AuthView>(initialView);
   const redirectTo =
@@ -102,6 +105,28 @@ export default function AuthScreen({
           providers={[]}
         />
       </div>
+
+      {onOpenLegal && (
+        <p className="mt-6 max-w-md text-center text-xs leading-relaxed text-text-muted">
+          By using Loggi you agree to our{" "}
+          <button
+            type="button"
+            onClick={() => onOpenLegal("terms")}
+            className="font-semibold text-warm-brown underline underline-offset-2 hover:opacity-70"
+          >
+            Terms of service
+          </button>{" "}
+          and{" "}
+          <button
+            type="button"
+            onClick={() => onOpenLegal("privacy")}
+            className="font-semibold text-warm-brown underline underline-offset-2 hover:opacity-70"
+          >
+            Privacy policy
+          </button>
+          .
+        </p>
+      )}
 
       {view === "update_password" && (
         <button

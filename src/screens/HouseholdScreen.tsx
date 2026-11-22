@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ConfirmDialog from "../components/ConfirmDialog.tsx";
 import Modal from "../components/Modal.tsx";
 
 export type HouseholdMemberView = {
@@ -57,6 +58,8 @@ export default function HouseholdScreen({
   const [copied, setCopied] = useState(false);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
+  const [regeneratingCode, setRegeneratingCode] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const memberToRemove = members.find(
@@ -111,6 +114,17 @@ export default function HouseholdScreen({
       setConfirmLeave(false);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleRegenerate() {
+    if (regeneratingCode) return;
+    setRegeneratingCode(true);
+    try {
+      await onRegenerateCode();
+    } finally {
+      setRegeneratingCode(false);
+      setConfirmRegenerate(false);
     }
   }
 
@@ -217,16 +231,8 @@ export default function HouseholdScreen({
         {isOwner && (
           <button
             type="button"
-            onClick={() => {
-              if (
-                window.confirm(
-                  "Generate a new invite code? The old code will stop working.",
-                )
-              ) {
-                void onRegenerateCode();
-              }
-            }}
-            disabled={isLoading}
+            onClick={() => setConfirmRegenerate(true)}
+            disabled={isLoading || regeneratingCode}
             className="mt-3 text-xs font-medium text-warm-brown underline underline-offset-2 hover:opacity-70 disabled:opacity-50"
           >
             Generate a new code
@@ -372,6 +378,23 @@ export default function HouseholdScreen({
             You can rejoin later with a new invite code from the owner.
           </p>
         </Modal>
+      )}
+
+      {confirmRegenerate && (
+        <ConfirmDialog
+          title="Generate a new invite code?"
+          description="The old code will stop working immediately."
+          confirmLabel="Generate new code"
+          tone="danger"
+          pending={regeneratingCode}
+          onConfirm={() => void handleRegenerate()}
+          onCancel={() => setConfirmRegenerate(false)}
+        >
+          <p className="text-sm text-text-muted">
+            Anyone who already joined stays in the household. Share the new
+            code only with people you want to invite.
+          </p>
+        </ConfirmDialog>
       )}
     </div>
   );

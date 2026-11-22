@@ -15,10 +15,11 @@ was built and tested offline against a throwaway PostgreSQL instance; no remote
 database was contacted.
 
 CI repeats the migration/RLS validation on PostgreSQL 16 using the mocks in
-[`tests/local-mocks.sql`](./tests/local-mocks.sql) and
-[`tests/free-plan-rls.sql`](./tests/free-plan-rls.sql). The mocks are test-only:
+[`tests/local-mocks.sql`](./tests/local-mocks.sql),
+[`tests/free-plan-rls.sql`](./tests/free-plan-rls.sql) and
+[`tests/retention-rls.sql`](./tests/retention-rls.sql). The mocks are test-only:
 they create minimal `auth`/`storage` objects so the real migrations can run on
-plain PostgreSQL.
+plain PostgreSQL. `retention-rls.sql` builds its own fixtures and runs last.
 
 ---
 
@@ -36,6 +37,10 @@ Apply in filename order. The Supabase CLI does this automatically.
 | 6 | [`migrations/20261109000200_potty_outcomes.sql`](./migrations/20261109000200_potty_outcomes.sql) | Structured `DogEvent` potty outcome/location/cue with toilet-only checks; narrow `isAccident` backfill; potty-summary index |
 | 7 | [`migrations/20261109000300_schedules.sql`](./migrations/20261109000300_schedules.sql) | `CareSchedule` and `CareTaskCompletion`; `is_dog_in_household()`/`is_schedule_member()` helpers; RLS and realtime |
 | 8 | [`migrations/20261109000400_event_social.sql`](./migrations/20261109000400_event_social.sql) | `EventReaction` and `EventComment`; `is_event_member()`/`is_event_owner()` helpers; immutable-comment RLS and realtime |
+| 9 | [`migrations/20261110000100_insight_feedback.sql`](./migrations/20261110000100_insight_feedback.sql) | `InsightFeedback` owner labels; household-scoped select/insert RLS; realtime |
+| 10 | [`migrations/20261110000200_user_profile.sql`](./migrations/20261110000200_user_profile.sql) | `UserPreference`; own-row RLS; display-name RPC |
+| 11 | [`migrations/20261110000300_avatars.sql`](./migrations/20261110000300_avatars.sql) | `avatars` storage bucket and per-user storage policies |
+| 12 | [`migrations/20261121000100_schedule_groups.sql`](./migrations/20261121000100_schedule_groups.sql) | `CareSchedule.groupId` for multi-dog routines; backfills existing rows with unique groups |
 
 The migrations are intended for an **empty schema**. They do not drop tables
 and they do not migrate rows from the legacy schema. The paused dev project
@@ -683,9 +688,9 @@ For the full Stripe setup and webhook testing, see
 
 ## 13. Frontend contract changes
 
-These are the changes the React app must make to work with this schema. (The
-current `release/mvp` working tree already contains most of the RPC/type
-changes; this list is the contract for any remaining screens and for review.)
+These are the changes the React app must make to work with this schema. The
+current `main` branch already contains these RPC/type changes; this list is kept
+as the contract for review and for any future screens.
 
 1. **Stop inserting `Household`/`HouseholdMember` directly.**
    `HouseholdSetupScreen` must call:
@@ -756,3 +761,27 @@ changes; this list is the contract for any remaining screens and for review.)
 - `20261110000200_user_profile.sql` — user notification preferences and the `update_display_name` RPC.
 
 - `20261110000300_avatars.sql` — public-read, owner-write profile avatar bucket and policies.
+
+---
+
+## 14. Auth email templates
+
+Supabase's built-in mailer only delivers to project team addresses and is
+limited to 2 messages/hour, so it is not suitable for real users. Configure
+custom SMTP for the hosted project before launch; the full runbook is
+[`docs/email-setup.md`](../docs/email-setup.md).
+
+Branded templates live in [`templates/`](./templates) and are referenced by
+[`config.toml`](./config.toml):
+
+| Template | Trigger |
+| --- | --- |
+| `confirmation.html` | New email/password signup when confirmation is enabled |
+| `recovery.html` | Password reset |
+| `magic_link.html` | Passwordless sign-in |
+| `email_change.html` | Changing the account email |
+
+Keep the `{{ .ConfirmationURL }}` placeholder intact. For the hosted project,
+copy the HTML into Dashboard → Authentication → Email Templates, or apply the
+config with `npx supabase config push` after linking. Never commit SMTP
+credentials; set the password in Supabase secrets/dashboard.

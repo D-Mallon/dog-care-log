@@ -96,3 +96,39 @@ jobs:
         run: |
           psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
             -f supabase/tests/free-plan-rls.sql
+
+      # Covers dog-profile constraints, potty outcome coupling, schedules,
+      # reactions/comments and the realtime publication. It creates its own
+      # fixtures and intentionally leaves the throwaway CI database dirty, so
+      # it runs last.
+      - name: Retention and social RLS checks
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 \
+            -f supabase/tests/retention-rls.sql
+
+  e2e:
+    name: Browser smoke (unauthenticated shell)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser smoke tests
+        run: npm run test:e2e

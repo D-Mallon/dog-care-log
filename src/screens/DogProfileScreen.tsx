@@ -19,6 +19,7 @@ import {
   dogExportFilename,
 } from "../lib/dogExport.ts";
 import EditEventModal from "../components/EditEventModal.tsx";
+import ConfirmDialog from "../components/ConfirmDialog.tsx";
 import Modal from "../components/Modal.tsx";
 import EventReactions from "../components/EventReactions.tsx";
 import BreedCombobox from "../components/BreedCombobox.tsx";
@@ -132,6 +133,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
   const [weightPending, setWeightPending] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [resettingDemo, setResettingDemo] = useState(false);
+  const [confirmResetDemo, setConfirmResetDemo] = useState(false);
 
   const sortedEvents = [...props.events].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
@@ -160,14 +162,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
   }
 
   async function handleResetDemo() {
-    if (
-      resettingDemo ||
-      !window.confirm(
-        "Reset the demo history? This replaces the sample events and weights for this dog.",
-      )
-    ) {
-      return;
-    }
+    if (resettingDemo) return;
     setResettingDemo(true);
     try {
       await resetDemoData(props.dog, props.userIdInDB);
@@ -177,6 +172,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
       setSaveError("Couldn't reset the demo data. Please try again.");
     } finally {
       setResettingDemo(false);
+      setConfirmResetDemo(false);
     }
   }
 
@@ -449,7 +445,7 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
             {isDemoDog(props.dog) && (
               <button
                 type="button"
-                onClick={() => void handleResetDemo()}
+                onClick={() => setConfirmResetDemo(true)}
                 disabled={resettingDemo}
                 className="mb-2 w-full text-center text-xs font-medium text-text-muted underline underline-offset-2 hover:text-warm-brown disabled:opacity-50"
               >
@@ -1113,6 +1109,22 @@ export default function DogProfileScreen(props: DogProfileScreenProps) {
           onClose={() => setEditingEventId(null)}
           onSaved={props.onSave}
         />
+      )}
+
+      {confirmResetDemo && (
+        <ConfirmDialog
+          title="Reset the demo history?"
+          description="This replaces the sample events and weights for this dog."
+          confirmLabel="Reset demo history"
+          pending={resettingDemo}
+          onConfirm={() => void handleResetDemo()}
+          onCancel={() => setConfirmResetDemo(false)}
+        >
+          <p className="text-sm text-text-muted">
+            The demo dog, household and routine stay in place. Only its
+            synthetic events and weights are rebuilt.
+          </p>
+        </ConfirmDialog>
       )}
     </div>
   );

@@ -1,12 +1,12 @@
 # Loggi — deployment and rollback runbook
 
-**Applies to:** Release 1 / `v0.1.0`
+**Applies to:** Release 1 / `v0.6.0` and later
 
-**Branches:** `release/mvp` (integration and Vercel preview) → `main` (production)
+**Branch model:** `main` is production and integration; short-lived branches open pull requests into `main`, and Vercel previews are created per pull request.
 
 **Owner:** the release owner on duty
 
-This is the ordered runbook for taking Loggi from an approved `release/mvp` to production, and for getting back to a known-good state if something goes wrong. Run commands from the repository root unless stated otherwise. Replace every `<placeholder>`.
+This is the ordered runbook for taking Loggi from an approved pull request to production, and for getting back to a known-good state if something goes wrong. Run commands from the repository root unless stated otherwise. Replace every `<placeholder>`.
 
 > **Rules**
 > - Production changes only after test-mode QA and a fresh backup.
@@ -29,11 +29,13 @@ This is the ordered runbook for taking Loggi from an approved `release/mvp` to p
 
 ## 1. Preflight
 
-- [ ] CI is green on `release/mvp` (lint, typecheck, unit/component tests, Edge Function parse check, build, migration/RLS database job).
-- [ ] The pull request from `release/mvp` to `main` is approved.
+- [ ] CI is green on the release PR (lint, typecheck, unit/component tests, Playwright smoke test, Edge Function parse check, build, migration/RLS database jobs).
+- [ ] The release pull request into `main` is approved.
 - [ ] The migration diff has been reviewed by someone other than its author.
 - [ ] Stripe test-mode products/prices exist and `docs/stripe-setup.md` has been followed.
-- [ ] Legal placeholders in `src/screens/LegalScreen.tsx` are replaced and the copy has been reviewed.
+- [ ] The privacy/terms copy in `src/screens/LegalScreen.tsx` has been reviewed for the entity, consumer-law and VAT position; it is reachable before sign-up and contains no placeholders.
+- [ ] Custom SMTP is configured and a password-reset email has reached a non-team address (see [email-setup.md](email-setup.md)).
+- [ ] A decision has been recorded on Stripe Tax/VAT. If enabled, `STRIPE_AUTOMATIC_TAX=true` is set and the tax scenarios passed; if not, the neutral pricing copy stays.
 - [ ] Supabase, Stripe and Vercel access is confirmed.
 - [ ] A maintenance window and a support contact are agreed.
 - [ ] The previous production deployment URL and commit SHA are recorded.
@@ -220,13 +222,19 @@ npx supabase secrets set \
   STRIPE_PRICE_LIFETIME=price_... \
   APP_URL=https://<production-or-preview-domain>
 
+# Optional: only after tax registrations and prices are configured. Stripe Tax
+# Basic is billed per transaction; see docs/stripe-setup.md §12.2.
+#   STRIPE_AUTOMATIC_TAX=true
+
 # Lists names and digests only — never the values.
 npx supabase secrets list
 ```
 
-- [ ] All six secrets are present.
+- [ ] All six required secrets are present.
 - [ ] `STRIPE_SECRET_KEY` is a test key (`sk_test_...`) for QA, or a live key only after sign-off.
 - [ ] `APP_URL` matches the environment whose checkout redirects you are testing.
+- [ ] `STRIPE_AUTOMATIC_TAX` is either unset (tax off) or set to `true` after tax registrations and price tax behaviour are configured.
+- [ ] Custom SMTP is configured in Supabase Auth and password reset works for a non-team address.
 - [ ] No Stripe secret appears in Vercel env, `.env`, the client bundle or Git.
 - [ ] Functions were deployed after the latest code change. Secrets are read at runtime; redeploy only when code changes.
 
@@ -268,7 +276,7 @@ In Stripe test mode → Settings → Billing → **Customer Portal**:
 - [ ] The monthly, yearly and lifetime prices are available.
 - [ ] Customers can update payment methods, view invoices and cancel.
 - [ ] Cancellation behaviour is set to cancel at period end (not immediately).
-- [ ] Stripe Tax is enabled if required for your jurisdiction; confirm prices are displayed VAT-inclusive where required.
+- [ ] Stripe Tax is either deliberately off (and the pricing copy stays neutral) or enabled with `STRIPE_AUTOMATIC_TAX=true`; if enabled, confirm prices and registrations. Stripe Tax Basic is billed per transaction, not free.
 
 ### 7.3 Test-mode verification
 
@@ -324,7 +332,7 @@ Or use the Vercel dashboard (Project → Settings → Environment Variables) for
 
 ### 8.3 Preview deployment
 
-1. Open or refresh the pull request from `release/mvp` to `main`.
+1. Open or refresh the pull request from the release branch into `main`.
 2. Wait for the Vercel preview build to succeed.
 3. Open the preview URL and confirm the app boots without a configuration error.
 4. Add the preview origin to Supabase redirect URLs if it is new (a wildcard such as `https://*-<team-slug>.vercel.app/**` is convenient but broader than an exact origin; use exact URLs where practical).
@@ -364,8 +372,8 @@ Tag the release after the smoke test passes and the release owner signs off:
 ```bash
 git switch main
 git pull --ff-only
-git tag -a v0.1.0 -m "Loggi v0.1.0 — Release 1"
-git push origin v0.1.0
+git tag -a v0.6.0 -m "Loggi v0.6.0"
+git push origin v0.6.0
 ```
 
 ## 10. Rollback

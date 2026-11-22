@@ -1,3 +1,11 @@
+/**
+ * Legacy potty heuristics kept for its unit tests.
+ *
+ * NOT used by the app: the profile uses `summarizePotty()` from
+ * `pottyTraining.ts` and the insight cards use `healthBaseline.ts`. Keep this
+ * module out of new UI work unless it is deliberately revived; see
+ * docs/insights.md.
+ */
 import type { CareEvent } from "../types/core.ts";
 import { formatDurationHours, hoursBetween } from "./dates.ts";
 

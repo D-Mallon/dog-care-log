@@ -1,6 +1,11 @@
 import { useId } from "react";
 import type { EventType, HouseholdMember } from "../types/core.ts";
-import type { TodayTask, TodayTaskStatus } from "../lib/schedules.ts";
+import {
+  groupTodayTasks,
+  type TodayTask,
+  type TodayTaskGroup,
+  type TodayTaskStatus,
+} from "../lib/schedules.ts";
 import { EVENT_COLOURS } from "../lib/eventMeta.ts";
 
 export type TodayPlanDog = {
@@ -11,17 +16,11 @@ export type TodayPlanDog = {
 export type TodayPlanProps = {
   tasks: TodayTask[];
   dogs: TodayPlanDog[];
-  onToggle?: (task: TodayTask, done: boolean) => void;
+  onToggle?: (tasks: TodayTask[], done: boolean) => void;
   onAddSchedule?: () => void;
   isLoading?: boolean;
   members?: HouseholdMember[];
   currentUserId?: string;
-};
-
-type DogGroup = {
-  dogId: string;
-  dogName: string;
-  tasks: TodayTask[];
 };
 
 const STATUS_META: Record<
@@ -69,45 +68,17 @@ function formatTime(iso: string): string | null {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function taskTitle(task: TodayTask): string {
-  const title = task.schedule.title?.trim();
+function taskTitle(group: TodayTaskGroup): string {
+  const title = group.title?.trim();
   if (title) return title;
-  return TYPE_LABELS[task.schedule.type] ?? task.schedule.type;
+  return TYPE_LABELS[group.type] ?? group.type;
 }
 
-function groupByDog(tasks: TodayTask[], dogs: TodayPlanDog[]): DogGroup[] {
-  const dogNames = new Map<string, string>();
-  const dogOrder = new Map<string, number>();
-
-  dogs.forEach((dog, index) => {
-    dogNames.set(dog.dogId, dog.dogName);
-    dogOrder.set(dog.dogId, index);
-  });
-
-  const groups = new Map<string, DogGroup>();
-
-  for (const task of tasks) {
-    const dogId = task.schedule.dogId;
-    let group = groups.get(dogId);
-
-    if (!group) {
-      group = {
-        dogId,
-        dogName: dogNames.get(dogId) ?? dogId,
-        tasks: [],
-      };
-      groups.set(dogId, group);
-    }
-
-    group.tasks.push(task);
-  }
-
-  return [...groups.values()].sort((a, b) => {
-    const aOrder = dogOrder.get(a.dogId) ?? Number.MAX_SAFE_INTEGER;
-    const bOrder = dogOrder.get(b.dogId) ?? Number.MAX_SAFE_INTEGER;
-    if (aOrder !== bOrder) return aOrder - bOrder;
-    return a.dogName.localeCompare(b.dogName);
-  });
+function joinNames(names: string[]): string {
+  if (names.length === 0) return "your dogs";
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
 export function TodayPlan({
@@ -120,8 +91,8 @@ export function TodayPlan({
   currentUserId = "",
 }: TodayPlanProps) {
   const headingId = useId();
-  const groups = groupByDog(tasks, dogs);
-  const hasTasks = tasks.length > 0;
+  const groups = groupTodayTasks(tasks);
+  const dogNames = new Map(dogs.map((dog) => [dog.dogId, dog.dogName]));
 
   return (
     <section
@@ -137,9 +108,9 @@ export function TodayPlan({
           >
             Today's plan
           </h2>
-          {!isLoading && hasTasks && (
+          {!isLoading && groups.length > 0 && (
             <p className="mt-0.5 text-xs text-text-muted">
-              {tasks.length} care {tasks.length === 1 ? "task" : "tasks"}{" "}
+              {groups.length} care {groups.length === 1 ? "task" : "tasks"}{" "}
               scheduled
             </p>
           )}
@@ -164,103 +135,95 @@ export function TodayPlan({
         >
           Loading today's plan...
         </p>
-      ) : !hasTasks ? (
+      ) : groups.length === 0 ? (
         <p className="rounded-2xl bg-cream px-3 py-4 text-sm text-text-muted">
           Nothing planned for today.
         </p>
       ) : (
-        <div className="space-y-5">
-          {groups.map((group) => (
-            <div key={group.dogId}>
-              <h3 className="mb-2 font-fraunces text-base font-semibold text-warm-brown">
-                {group.dogName}
-              </h3>
+        <ul className="space-y-2">
+          {groups.map((group) => {
+            const isDone = group.status === "done";
+            const status = STATUS_META[group.status];
+            const colours = EVENT_COLOURS[group.type] ?? FALLBACK_TYPE;
+            const typeLabel = TYPE_LABELS[group.type] ?? group.type;
+            const title = taskTitle(group);
+            const dueTime = formatTime(group.dueAt) ?? "time not set";
+            const completedTime = group.completedAt
+              ? formatTime(group.completedAt)
+              : null;
+            const names = group.dogIds
+              .map((dogId) => dogNames.get(dogId) ?? dogId)
+              .filter(Boolean);
+            const heading = joinNames(names);
+            const checkboxLabel = `${isDone ? "Mark not done" : "Mark done"}: ${title} for ${heading}, due ${dueTime}`;
 
-              <ul className="space-y-2">
-                {group.tasks.map((task) => {
-                  const isDone = task.status === "done";
-                  const status = STATUS_META[task.status];
-                  const colours =
-                    EVENT_COLOURS[task.schedule.type] ?? FALLBACK_TYPE;
-                  const typeLabel =
-                    TYPE_LABELS[task.schedule.type] ?? task.schedule.type;
-                  const title = taskTitle(task);
-                  const dueTime = formatTime(task.dueAt) ?? "time not set";
-                  const completedTime = task.completedAt
-                    ? formatTime(task.completedAt)
-                    : null;
-                  const checkboxLabel = `${isDone ? "Mark not done" : "Mark done"}: ${title} for ${group.dogName}, due ${dueTime}`;
+            return (
+              <li
+                key={group.groupId}
+                className={`flex items-start gap-3 rounded-2xl border border-warm-brown/10 p-3 ${
+                  isDone ? "bg-cream" : "bg-white"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isDone}
+                  disabled={!onToggle || isLoading}
+                  onChange={(event) =>
+                    onToggle?.(group.tasks, event.target.checked)
+                  }
+                  aria-label={checkboxLabel}
+                  className="mt-1 h-5 w-5 shrink-0 cursor-pointer accent-warm-brown disabled:cursor-default"
+                />
 
-                  return (
-                    <li
-                      key={task.schedule.id}
-                      className={`flex items-start gap-3 rounded-2xl border border-warm-brown/10 p-3 ${
-                        isDone ? "bg-cream" : "bg-white"
-                      }`}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium ${colours.bg} ${colours.text}`}
                     >
-                      <input
-                        type="checkbox"
-                        checked={isDone}
-                        disabled={!onToggle || isLoading}
-                        onChange={(event) =>
-                          onToggle?.(task, event.target.checked)
-                        }
-                        aria-label={checkboxLabel}
-                        className="mt-1 h-5 w-5 shrink-0 cursor-pointer accent-warm-brown disabled:cursor-default"
-                      />
+                      <span aria-hidden="true">{colours.emoji}</span>
+                      {typeLabel}
+                    </span>
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-medium ${colours.bg} ${colours.text}`}
-                          >
-                            <span aria-hidden="true">{colours.emoji}</span>
-                            {typeLabel}
-                          </span>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${status.className}`}
+                    >
+                      {status.label}
+                    </span>
 
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${status.className}`}
-                          >
-                            {status.label}
-                          </span>
+                    <span className="text-xs text-text-muted">
+                      Due <time dateTime={group.dueAt}>{dueTime}</time>
+                    </span>
+                  </div>
 
-                          <span className="text-xs text-text-muted">
-                            Due{" "}
-                            <time dateTime={task.dueAt}>{dueTime}</time>
-                          </span>
-                        </div>
+                  <p
+                    className={`mt-1 text-sm font-medium ${
+                      isDone
+                        ? "text-text-muted line-through"
+                        : "text-text-dark"
+                    }`}
+                  >
+                    {title}
+                  </p>
+                  <p className="mt-0.5 text-xs text-text-muted">
+                    For {heading}
+                  </p>
 
-                        <p
-                          className={`mt-1 text-sm font-medium ${
-                            isDone
-                              ? "text-text-muted line-through"
-                              : "text-text-dark"
-                          }`}
-                        >
-                          {title}
-                        </p>
-
-                        {task.completedBy && (
-                          <p className="mt-0.5 text-xs text-text-muted">
-                            Completed by{" "}
-                            {task.completedBy === currentUserId
-                              ? "You"
-                              : members.find(
-                                  (member) =>
-                                    member.userId === task.completedBy,
-                                )?.displayName?.trim() ||
-                                "a household member"}
-                            {completedTime ? ` at ${completedTime}` : ""}
-                          </p>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </div>
+                  {group.completedBy && (
+                    <p className="mt-0.5 text-xs text-text-muted">
+                      Completed by{" "}
+                      {group.completedBy === currentUserId
+                        ? "You"
+                        : members.find(
+                            (member) => member.userId === group.completedBy,
+                          )?.displayName?.trim() || "a household member"}
+                      {completedTime ? ` at ${completedTime}` : ""}
+                    </p>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </section>
   );

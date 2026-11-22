@@ -1,8 +1,12 @@
 # Loggi — MVP to Paid Launch Plan
 
-**Status:** Active
-**Branch:** `release/mvp` (renamed from `feat/mvp-polish`; `main` remains production)
-**Last updated:** 8 November 2026
+**Status:** Active — core MVP complete, commercial-launch work remaining
+**Branch:** `main` (production and integration)
+**Last updated:** 19 November 2026
+
+> **Historical note:** Sections 1–15 record the original MVP build and the
+> v0.1.0–v0.5.1 releases. They reference `release/mvp` and old versions. Section
+> 16 is the current launch status and supersedes those branch/status notes.
 
 ---
 
@@ -521,7 +525,7 @@ Completed in the working tree (uncommitted, `release/mvp`):
 - [x] Backdated events, event editing, author/owner delete gating.
 - [x] Initial weight log, dedicated weight entry, corrected CSV export and potty insights.
 - [x] PWA manifest/icons/meta, accessible modal primitive, legal page, Vercel headers, WCAG AA muted text.
-- [x] Vitest unit and component suites (49 tests) and an esbuild parse check for all Edge Functions wired into CI; CI runs lint, typecheck, test, function check and build.
+- [x] Vitest unit and component suites (49 tests at the time; 170 now) and an esbuild parse check for all Edge Functions wired into CI; CI runs lint, typecheck, test, function check and build.
 - [x] README setup updated to `supabase/migrations/`; legacy destructive script explicitly deprecated.
 - [x] `.vercel/` removed from the git index; `vercel.json` headers added.
 - [x] Self-serve account deletion Edge Function and Account & data screen with full household CSV export.
@@ -741,3 +745,95 @@ The product needs trustworthy pattern signals before a cross-dog model. Per-dog 
 3. Add breed/size/age priors and time-of-day features where they improve validation.
 4. Only then consider personalized sequence models.
 5. Keep prediction copy non-diagnostic and vet-reviewed.
+
+---
+
+## 16. Launch-readiness update — 19 November 2026
+
+This section supersedes the branch/status notes in earlier sections. The
+product is past the original MVP build; what remains is commercial-launch
+work.
+
+### Completed in this pass
+
+- **Legal:** `LegalScreen` now contains only **Privacy** and **Terms**, with no
+  company/contact/address placeholders and no "unreviewed template" banner.
+  Refund/cancellation terms are folded into the Terms tab. Privacy and Terms
+  are reachable **before sign-up** from the auth screen, and support/contact
+  uses the in-app feedback form. The copy has not been reviewed by a lawyer.
+- **Stripe Tax:** Checkout supports `automatic_tax` behind the
+  `STRIPE_AUTOMATIC_TAX=true` secret. It is **off by default** because Stripe
+  Tax Basic is billed per transaction (0.5% for no-code Checkout, or a flat
+  per-API-call fee) and requires tax registrations. The pricing page no longer
+  claims VAT is included.
+- **Email:** branded Supabase auth templates added under
+  `supabase/templates/`; custom SMTP runbook added in
+  [`docs/email-setup.md`](docs/email-setup.md). The hosted SMTP provider still
+  needs to be configured.
+- **P2 fixes:** free-plan "+ Add a dog" now stays visible and routes to Pricing;
+  pricing plan buttons open the billing portal instead of being disabled;
+  browser/Android back is handled with in-app history; `window.confirm` was
+  replaced with an accessible `ConfirmDialog`; retention/social RLS runs in CI;
+  Playwright smoke tests and a CI job were added; React 18 type packages now
+  match the React 18 runtime; `AppChrome`, `SplashScreen` and
+  `FullScreenMessage` were extracted from `App.tsx`.
+- **Multi-dog routines:** `CareSchedule.groupId` groups one routine across
+  several dogs (migration `20261121000100_schedule_groups.sql`). The plan screen
+  supports multi-select dogs, editing a routine (including adding/removing
+  dogs), pausing/resuming and deleting the whole group. Today's plan shows one
+  task per group and completes all dogs together.
+- **Docs/process:** README branch workflow updated to `main`; `release/mvp` is
+  20 commits behind and should not be used; package version is `0.6.0`;
+  QA/deploy/stripe docs and this plan were refreshed.
+
+### Still required before a public paid launch
+
+- [x] Configure Resend/custom SMTP and apply the templates to the hosted
+      Supabase project; password reset verified with a non-team address on
+      21 November 2026. `loggidogs.com` is registered at Spaceship, Resend
+      shows the domain verified (DKIM/SPF/DMARC records are live), the
+      templates are in Supabase, and the Resend API key has been re-entered.
+- [ ] Test email confirmation if it is enabled, and test email change.
+- [ ] Deploy the v0.6.0 code. PR #11 (`feat/launch-readiness`) is open with
+      green CI and a Vercel preview. Production still serves the old v0.5.1
+      bundle with the legal placeholders; merge only after the preview QA.
+- [ ] Decide on VAT registration and Stripe Tax; if enabling, set
+      `STRIPE_AUTOMATIC_TAX=true` and run the tax scenarios. If not, keep the
+      current neutral pricing copy and document the position.
+- [ ] Complete the Stripe live-mode checklist and take one real payment/refund.
+- [ ] Have a qualified adviser review the privacy and terms copy.
+- [ ] Run the two-user, mobile and Stripe test-mode QA checklist and record
+      sign-off.
+- [ ] Add Sentry/uptime monitoring, confirm the Supabase plan and backups, and
+      do a restore drill.
+- [ ] Decide whether signups stay open during the trial period or are gated to
+      invited users.
+- [ ] Tag `v0.6.0` only after the above.
+
+### Decisions recorded — 20 November 2026
+
+- **Stripe Tax stays off for now.** It is a per-transaction cost and Loggi is
+  pre-revenue; the `STRIPE_AUTOMATIC_TAX` flag stays unset, the pricing copy
+  stays neutral, and the VAT position will be revisited after the first paying
+  cohort.
+- **SMTP provider:** Resend is the target once a domain exists. Brevo (300/day)
+  or SMTP2GO (1,000/month) can be used as a no-domain stopgap, but the
+  password-reset deliverability trade-off must be accepted. See
+  [`docs/email-setup.md`](docs/email-setup.md).
+
+### Trial acquisition
+
+See [`docs/go-to-market.md`](docs/go-to-market.md) for the 30-day trial
+acquisition plan, content hooks, tracking, and what can and cannot be
+automated through the TikTok/Meta APIs. See
+[`docs/insights.md`](docs/insights.md) for the actual rule-based commentary
+engine and the current (non-trained) ML status.
+
+### Verification run — 19 November 2026
+
+- `npm run lint`, `npm run typecheck`, `npm test` (170 tests),
+  `npm run check:functions` and `npm run build` pass.
+- `npm run test:e2e` passes both Playwright smoke tests.
+- All 11 migrations, `free-plan-rls.sql` and `retention-rls.sql` pass on a
+  disposable PostgreSQL 16.16 instance.
+- `npm audit --omit=dev` reports 0 production vulnerabilities.

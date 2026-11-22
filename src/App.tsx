@@ -9,8 +9,7 @@ import HouseholdScreen from "./screens/HouseholdScreen.tsx";
 import PricingScreen from "./screens/PricingScreen.tsx";
 import LegalScreen from "./screens/LegalScreen.tsx";
 import AccountScreen from "./screens/AccountScreen.tsx";
-import ErrorToast from "./components/ErrorToast.tsx";
-import NoticeToast from "./components/NoticeToast.tsx";
+import type { LegalTab } from "./screens/LegalScreen.tsx";
 import EventReactions from "./components/EventReactions.tsx";
 import TodayPlan from "./components/TodayPlan.tsx";
 import WeeklyReport from "./components/WeeklyReport.tsx";
@@ -20,12 +19,11 @@ import InsightsScreen from "./screens/InsightsScreen.tsx";
 import InsightsSummaryCard from "./components/InsightsSummaryCard.tsx";
 import OnboardingChecklist from "./components/OnboardingChecklist.tsx";
 import OnDutyCard from "./components/OnDutyCard.tsx";
-import AppHeader from "./components/AppHeader.tsx";
-import BottomNav, { type NavTab } from "./components/BottomNav.tsx";
+import AppChrome from "./components/AppChrome.tsx";
+import FullScreenMessage from "./components/FullScreenMessage.tsx";
+import SplashScreen from "./components/SplashScreen.tsx";
 import Modal from "./components/Modal.tsx";
-import OfflineBanner from "./components/OfflineBanner.tsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import type {
   CareEvent,
   CareSchedule,
@@ -50,6 +48,7 @@ import {
   saveHouseholdSnapshot,
 } from "./lib/offlineCache.ts";
 import { copyText } from "./lib/clipboard.ts";
+import { SUPPORT_LABEL, SUPPORT_URL } from "./lib/support.ts";
 import { canAddAnotherDog } from "./lib/planLimits.ts";
 import { buildWeeklyReport } from "./lib/weeklyReport.ts";
 import { buildHealthBaseline } from "./lib/healthBaseline.ts";
@@ -68,7 +67,7 @@ import {
 import {
   listCompletions,
   listSchedules,
-  setTaskCompletion,
+  setTaskGroupCompletion,
   updateSchedule,
 } from "./lib/scheduleApi.ts";
 import {
@@ -89,6 +88,8 @@ import {
 } from "./lib/billing.ts";
 import type { BillingPlan, BillingSummary } from "./types/billing.ts";
 import type { HouseholdMemberView } from "./screens/HouseholdScreen.tsx";
+import type { Screen } from "./types/navigation.ts";
+import { useScreenHistory } from "./lib/useScreenHistory.ts";
 
 type SessionClaims = {
   sub: string;
@@ -96,20 +97,6 @@ type SessionClaims = {
   displayName?: string;
   avatarUrl?: string;
 };
-
-type Screen =
-  | "home"
-  | "logEvent"
-  | "addDog"
-  | "dogProfile"
-  | "household"
-  | "pricing"
-  | "legal"
-  | "account"
-  | "profile"
-  | "weeklyReport"
-  | "schedules"
-  | "insights";
 
 function detectRecoveryRedirect(): boolean {
   if (typeof window === "undefined") return false;
@@ -121,124 +108,14 @@ function detectRecoveryRedirect(): boolean {
   );
 }
 
-function SplashScreen({ message = "Loading your household…" }: { message?: string }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-cream">
-      <div className="text-center">
-        <h1 className="text-5xl font-bold font-fraunces text-warm-brown mb-2">
-          Loggi
-        </h1>
-        <p className="text-sm text-text-muted">{message}</p>
-      </div>
-    </div>
-  );
-}
-
-function FullScreenMessage({
-  title,
-  message,
-  actionLabel,
-  onAction,
-  secondaryLabel,
-  onSecondary,
-}: {
-  title: string;
-  message: string;
-  actionLabel: string;
-  onAction: () => void;
-  secondaryLabel?: string;
-  onSecondary?: () => void;
-}) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-cream p-6">
-      <div className="w-full max-w-sm rounded-3xl border border-warm-brown/10 bg-white p-6 text-center shadow-sm">
-        <div className="mb-3 text-4xl" aria-hidden="true">
-          🐾
-        </div>
-        <h1 className="mb-2 text-xl font-bold font-fraunces text-warm-brown">
-          {title}
-        </h1>
-        <p className="mb-5 text-sm text-text-muted">{message}</p>
-        <button
-          type="button"
-          onClick={onAction}
-          className="w-full rounded-xl bg-warm-brown py-3 text-sm font-semibold text-white hover:opacity-90"
-        >
-          {actionLabel}
-        </button>
-        {secondaryLabel && onSecondary && (
-          <button
-            type="button"
-            onClick={onSecondary}
-            className="mt-3 w-full rounded-xl border border-warm-brown/20 py-3 text-sm font-medium text-warm-brown hover:bg-light-tan"
-          >
-            {secondaryLabel}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function AppChrome({
-  children,
-  errorMessage,
-  onDismissError,
-  noticeMessage,
-  onDismissNotice,
-  currentScreen,
-  displayName,
-  email,
-  avatarUrl,
-  householdName,
-  onNavigate,
-  onLogout,
-}: {
-  children: ReactNode;
-  errorMessage: string | null;
-  onDismissError: () => void;
-  noticeMessage?: string | null;
-  onDismissNotice?: () => void;
-  currentScreen: Screen;
-  displayName: string;
-  email?: string;
-  avatarUrl?: string;
-  householdName?: string;
-  onNavigate: (screen: Screen) => void;
-  onLogout: () => void;
-}) {
-  const activeTab: NavTab =
-    currentScreen === "insights" || currentScreen === "weeklyReport"
-      ? "insights"
-      : currentScreen === "schedules"
-        ? "schedules"
-        : currentScreen === "profile" || currentScreen === "account"
-          ? "profile"
-          : "home";
-
-  return (
-    <>
-      <AppHeader
-        displayName={displayName}
-        email={email}
-        avatarUrl={avatarUrl}
-        householdName={householdName}
-        onNavigate={onNavigate}
-        onLogout={onLogout}
-      />
-      {children}
-      <BottomNav active={activeTab} onNavigate={onNavigate} />
-      <OfflineBanner />
-      {noticeMessage && onDismissNotice && (
-        <NoticeToast message={noticeMessage} onDismiss={onDismissNotice} />
-      )}
-      <ErrorToast message={errorMessage} onDismiss={onDismissError} />
-    </>
-  );
-}
-
 function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("home");
+  const [legalTab, setLegalTab] = useState<LegalTab>("privacy");
+  const {
+    navigate: changeScreen,
+    goBack,
+    reset: resetScreenHistory,
+  } = useScreenHistory(currentScreen, setCurrentScreen);
   const [dogs, setDogs] = useState<Dog[]>([]);
   const [events, setEvents] = useState<CareEvent[]>([]);
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([]);
@@ -335,9 +212,9 @@ function App() {
     setDogsLoading(true);
     setEventsLoading(true);
     setHouseholdLoading(true);
-    setCurrentScreen("home");
+    resetScreenHistory();
     hasLoadedDataRef.current = false;
-  }, []);
+  }, [resetScreenHistory]);
 
   const loadHousehold = useCallback(async (userId: string) => {
     setHouseholdLoading(true);
@@ -716,10 +593,6 @@ function App() {
     return () => window.clearTimeout(timeout);
   }, [noticeMessage]);
 
-  function changeScreen(screen: Screen) {
-    setCurrentScreen(screen);
-  }
-
   function getDogNameById(dogId: string): string {
     if (dogs.length === 0) return "No dog saved to profile";
     const matchingDog = dogs.find((dog) => dog.dogId === dogId);
@@ -756,9 +629,14 @@ function App() {
     changeScreen("dogProfile");
   }
 
+  function handleOpenLegal(tab: LegalTab) {
+    setLegalTab(tab);
+    changeScreen("legal");
+  }
+
   function handleDataFromChildNewEvent(careEvent: CareEvent) {
     setEvents((previousEvents) => [...previousEvents, careEvent]);
-    setCurrentScreen("home");
+    changeScreen("home", { replace: true });
   }
 
   function handleAddDogClick() {
@@ -781,7 +659,7 @@ function App() {
     if (household) {
       void loadHouseholdData(household, claims?.sub ?? "");
     }
-    setCurrentScreen("home");
+    changeScreen("home", { replace: true });
   }
 
   async function handleDeleteEvent(eventId: string) {
@@ -829,7 +707,7 @@ function App() {
     setWeightLogs((previousWeights) =>
       previousWeights.filter((weight) => weight.dogId !== dogId),
     );
-    setCurrentScreen("home");
+    changeScreen("home", { replace: true });
   }
 
   async function handleQuickLog(dogId: string, eventType: EventType) {
@@ -1012,7 +890,6 @@ function App() {
     if (currentUserId) clearHouseholdSnapshot(currentUserId);
     resetDomainState();
     setHouseholdLoading(false);
-    setCurrentScreen("home");
   }
 
   async function handleSelectPlan(plan: BillingPlan) {
@@ -1088,7 +965,6 @@ function App() {
       }
       setClaims(null);
       resetDomainState();
-      setCurrentScreen("home");
       return true;
     } catch (error) {
       console.error("Error deleting account:", error);
@@ -1105,11 +981,23 @@ function App() {
 
   async function handleTakeTask(task: TodayTask) {
     if (!currentUserId) return;
+    const groupKey = task.schedule.groupId;
+    const groupSchedules = groupKey
+      ? schedules.filter((schedule) => schedule.groupId === groupKey)
+      : [];
+    const targets =
+      groupSchedules.length > 0 ? groupSchedules : [task.schedule];
+    const targetIds = new Set(targets.map((schedule) => schedule.id));
+
     try {
-      await updateSchedule(task.schedule.id, { assignedTo: currentUserId });
+      await Promise.all(
+        targets.map((schedule) =>
+          updateSchedule(schedule.id, { assignedTo: currentUserId }),
+        ),
+      );
       setSchedules((previous) =>
         previous.map((schedule) =>
-          schedule.id === task.schedule.id
+          targetIds.has(schedule.id)
             ? { ...schedule, assignedTo: currentUserId }
             : schedule,
         ),
@@ -1121,40 +1009,43 @@ function App() {
     }
   }
 
-  async function handleToggleTask(task: TodayTask, done: boolean) {
-    if (!currentUserId) return;
-    const dueDate = toLocalDateKey(new Date(task.dueAt));
+  async function handleToggleTasks(tasks: TodayTask[], done: boolean) {
+    if (!currentUserId || tasks.length === 0) return;
+    const dueDate = toLocalDateKey(new Date(tasks[0].dueAt));
+    const scheduleIds = tasks.map((task) => task.schedule.id);
+    const scheduleIdSet = new Set(scheduleIds);
 
     try {
-      await setTaskCompletion(
-        task.schedule.id,
+      await setTaskGroupCompletion(
+        scheduleIds,
         dueDate,
         done,
         currentUserId,
       );
       if (done) {
+        const completedAt = new Date().toISOString();
         setCompletions((previous) => [
           ...previous.filter(
             (completion) =>
               !(
-                completion.scheduleId === task.schedule.id &&
+                scheduleIdSet.has(completion.scheduleId) &&
                 completion.dueDate === dueDate
               ),
           ),
-          {
+          ...scheduleIds.map((scheduleId) => ({
             id: crypto.randomUUID(),
-            scheduleId: task.schedule.id,
+            scheduleId,
             dueDate,
             completedBy: currentUserId,
-            completedAt: new Date().toISOString(),
-          },
+            completedAt,
+          })),
         ]);
       } else {
         setCompletions((previous) =>
           previous.filter(
             (completion) =>
               !(
-                completion.scheduleId === task.schedule.id &&
+                scheduleIdSet.has(completion.scheduleId) &&
                 completion.dueDate === dueDate
               ),
           ),
@@ -1268,7 +1159,20 @@ function App() {
   }
 
   if (!claims) {
-    return <AuthScreen />;
+    if (currentScreen === "legal") {
+      return (
+        <div className="min-h-screen bg-cream px-4 py-6">
+          <div className="mx-auto max-w-[480px]">
+            <LegalScreen
+              initialTab={legalTab}
+              onBack={() => goBack("home")}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return <AuthScreen onOpenLegal={handleOpenLegal} />;
   }
 
   if (householdError && !household) {
@@ -1293,7 +1197,7 @@ function App() {
           onDismissError={() => setErrorMessage(null)}
         >
           <ProfileSettingsScreen
-            onBack={() => changeScreen("home")}
+            onBack={() => goBack("home")}
             onUpdated={() => void refreshAccountClaims()}
           />
         </AppChrome>
@@ -1396,7 +1300,9 @@ function App() {
               }))}
               members={members}
               currentUserId={currentUserId}
-              onToggle={(task, done) => void handleToggleTask(task, done)}
+              onToggle={(groupTasks, done) =>
+                void handleToggleTasks(groupTasks, done)
+              }
               onAddSchedule={() => changeScreen("schedules")}
             />
           </div>
@@ -1418,7 +1324,7 @@ function App() {
               The dogs
             </h2>
           </div>
-          {canAddDog && (
+          {dogs.length > 0 && (
             <button
               type="button"
               onClick={handleAddDogClick}
@@ -1608,15 +1514,15 @@ function App() {
         <footer className="mt-8 flex flex-wrap justify-center gap-x-3 gap-y-2 border-t border-warm-brown/10 pt-4 text-[11px] text-text-muted">
           <button
             type="button"
-            onClick={() => window.open("https://forms.gle/cMtnvK4MEdMrGmyH6", "_blank")}
+            onClick={() => window.open(SUPPORT_URL, "_blank")}
             className="hover:text-warm-brown"
           >
-            Send feedback
+            {SUPPORT_LABEL}
           </button>
           <span aria-hidden="true">·</span>
           <button
             type="button"
-            onClick={() => changeScreen("legal")}
+            onClick={() => handleOpenLegal("privacy")}
             className="hover:text-warm-brown"
           >
             Privacy & terms
@@ -1741,7 +1647,7 @@ function App() {
       >
         <button
           type="button"
-          onClick={() => changeScreen("home")}
+          onClick={() => goBack("home")}
           className="mb-6 px-4 py-2 rounded-lg bg-warm-brown text-white font-bold"
         >
           Home
@@ -1764,7 +1670,7 @@ function App() {
       >
         <button
           type="button"
-          onClick={() => changeScreen("home")}
+          onClick={() => goBack("home")}
           className="mb-6 px-4 py-2 rounded-lg bg-warm-brown text-white font-bold"
         >
           Home
@@ -1802,7 +1708,7 @@ function App() {
       >
         <button
           type="button"
-          onClick={() => changeScreen("home")}
+          onClick={() => goBack("home")}
           className="flex items-center gap-1.5 text-sm font-medium text-warm-brown mb-6 hover:opacity-70 transition-opacity"
         >
           ← Back
@@ -1856,7 +1762,7 @@ function App() {
           members={memberViews}
           isLoading={false}
           error={null}
-          onBack={() => changeScreen("home")}
+          onBack={() => goBack("home")}
           onCopyCode={handleCopyInviteCode}
           onRename={handleRenameHousehold}
           onRegenerateCode={handleRegenerateInviteCode}
@@ -1883,7 +1789,7 @@ function App() {
           onSelectPlan={(plan) => void handleSelectPlan(plan)}
           onManageBilling={() => void handleManageBilling()}
           onRetry={() => void loadBilling(household)}
-          onBack={() => changeScreen("home")}
+          onBack={() => goBack("home")}
         />
       </AppChrome>
     );
@@ -1905,7 +1811,7 @@ function App() {
           onChanged={() =>
             void loadHouseholdData(household, claims.sub ?? "")
           }
-          onBack={() => changeScreen("home")}
+          onBack={() => goBack("home")}
         />
       </AppChrome>
     );
@@ -1920,7 +1826,7 @@ function App() {
       >
         <button
           type="button"
-          onClick={() => changeScreen("home")}
+          onClick={() => goBack("home")}
           className="mb-6 flex items-center gap-1.5 text-sm font-medium text-warm-brown hover:opacity-70"
         >
           ← Back
@@ -1959,7 +1865,7 @@ function App() {
         onDismissError={() => setErrorMessage(null)}
       >
         <ProfileSettingsScreen
-          onBack={() => changeScreen("account")}
+          onBack={() => goBack("account")}
           onOpenAccount={() => changeScreen("account")}
           onUpdated={() => {
             void loadHouseholdData(household, claims.sub ?? "");
@@ -1991,7 +1897,7 @@ function App() {
           isDeleting={isDeletingAccount}
           onExport={handleExportAllData}
           onDelete={handleDeleteAccount}
-          onBack={() => changeScreen("home")}
+          onBack={() => goBack("home")}
           onOpenProfile={() => changeScreen("profile")}
         />
       </AppChrome>
@@ -2005,7 +1911,7 @@ function App() {
         errorMessage={errorMessage}
         onDismissError={() => setErrorMessage(null)}
       >
-        <LegalScreen onBack={() => changeScreen("home")} />
+        <LegalScreen initialTab={legalTab} onBack={() => goBack("home")} />
       </AppChrome>
     );
   }

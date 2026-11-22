@@ -12,6 +12,17 @@ import { createAdminClient } from "../_shared/supabase.ts";
 const TRIAL_PERIOD_DAYS = 14;
 
 /**
+ * Stripe Tax is opt-in because Tax Basic is billed per transaction (currently
+ * 0.5% for no-code Checkout or a flat per-API-call fee). Enabling it without
+ * tax registrations can also make Checkout fail. Set
+ * `STRIPE_AUTOMATIC_TAX=true` only after the tax registrations and prices are
+ * configured; see docs/stripe-setup.md §12.2.
+ */
+function automaticTaxEnabled(): boolean {
+  return Deno.env.get("STRIPE_AUTOMATIC_TAX") === "true";
+}
+
+/**
  * Accept `{ plan }` only. Price IDs and amounts are never read from the
  * request; the server maps the plan to a configured Stripe price.
  */
@@ -81,6 +92,12 @@ async function handleCheckout(req: Request): Promise<Response> {
     ),
     cancel_url: appUrlWithQuery("checkout=cancelled"),
     line_items: [{ price: priceId, quantity: 1 }],
+    ...(automaticTaxEnabled()
+      ? {
+          automatic_tax: { enabled: true },
+          customer_update: { address: "auto" as const },
+        }
+      : {}),
   };
 
   try {

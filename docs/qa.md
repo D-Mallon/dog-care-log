@@ -1,6 +1,6 @@
 # Loggi — Release 1 QA checklist
 
-Manual QA for **v0.1.0 / Release 1**. Run it against a Vercel preview (preferred) or a local build, using a **dev Supabase project** and **Stripe test mode**. The Vitest unit and component suites (49 tests) run in CI; end-to-end browser automation is a separate workstream and is not yet wired in.
+Manual QA for **v0.6.0 / Release 1**. Run it against a Vercel preview (preferred) or a local build, using a **dev Supabase project** and **Stripe test mode**. The Vitest unit/component suite and the Playwright unauthenticated-shell smoke test run in CI; the authenticated two-user, realtime and Stripe flows below remain manual.
 
 > **Never run destructive QA against production data.** Use two fresh test accounts and test-mode payment details only.
 
@@ -21,6 +21,7 @@ Manual QA for **v0.1.0 / Release 1**. Run it against a Vercel preview (preferred
 - [ ] Two separate accounts are available: **User A** and **User B**.
 - [ ] They use **separate browser profiles** (or separate devices). Do not test two users in two tabs of the same profile.
 - [ ] A dev Supabase project is linked, migrations are applied, and the Edge Functions are deployed.
+- [ ] Custom SMTP is configured (or the test uses project-team addresses) so signup confirmation and password reset can be tested. See [email-setup.md](email-setup.md).
 - [ ] Stripe is in **test mode**, prices are configured, and the webhook endpoint is receiving events.
 - [ ] Stripe CLI forwarding is running: `stripe listen --forward-to <webhook-url>` (hosted: `https://<project-ref>.supabase.co/functions/v1/stripe-webhook`; local stack: `http://127.0.0.1:54321/functions/v1/stripe-webhook`).
 - [ ] You have at least one test dog with a photo and a weight.
@@ -98,7 +99,7 @@ Manual QA for **v0.1.0 / Release 1**. Run it against a Vercel preview (preferred
 ## 3b. Dogs and the free-plan limit
 
 - [ ] **B8 — First dog.** A free household can add its first dog with photo, breed, age, weight and notes.
-- [ ] **B9 — Second dog blocked in UI.** With one dog and no plan, "+ Add a Dog" sends the user to Pricing with a clear explanation.
+- [ ] **B9 — Second dog blocked in UI.** With one dog and no plan, the "+ Add a dog" button stays visible and sends the user to Pricing with a clear explanation (it must not disappear).
 - [ ] **B10 — Second dog blocked in RLS.** A direct insert of a second dog for an unentitled household is rejected by the `Dogs` INSERT policy.
 - [ ] **B11 — Premium unlocks dogs.** An active/trialing subscription allows a second and subsequent dog.
 - [ ] **B12 — Cancellation does not delete dogs.** If a plan ends with multiple dogs, existing dogs and history remain; only new dogs are blocked.
@@ -299,9 +300,58 @@ Accessibility and UX:
 
 ---
 
+## 12b. Shell, legal and destructive-action UX
+
+- [ ] **U1 — Legal before sign-up.** On the signed-out auth screen, "Terms of service" and "Privacy policy" open the legal screen without creating an account. Both tabs render; Back returns to the auth screen.
+- [ ] **U2 — No placeholder copy.** The privacy/terms pages contain no `[COMPANY NAME]`, `[CONTACT EMAIL]` or `[REGISTERED ADDRESS]` text and no "unreviewed template" banner.
+- [ ] **U3 — Support channel.** The contact/support link in the legal copy opens the current feedback form in a new tab.
+- [ ] **U4 — In-app legal.** The home footer opens Privacy & terms while signed in; Back returns to home.
+- [ ] **U5 — Browser/Android back.** From Home, open a dog, then Profile, then Account. Browser/Android back returns to the previous app screen rather than leaving the app. Forward returns again.
+- [ ] **U6 — Destructive actions use the in-app dialog.** Reset demo history, regenerate invite code, sign out other sessions and delete a routine all open a styled modal (not a native browser confirm), with Cancel/Escape working and focus restored.
+- [ ] **U7 — Free-plan add-dog CTA.** With one dog and no plan, the "+ Add a dog" button is visible and routes to Pricing. It does not disappear.
+- [ ] **U8 — Entitled plan buttons.** With an active plan, the current plan is disabled; other plan buttons open the billing portal instead of being dead controls.
+
+---
+
+## 12c. Email and SMTP
+
+- [ ] **M1 — Signup confirmation.** With confirmation enabled, a fresh non-team email receives the branded confirmation and the link works.
+- [ ] **M2 — Password reset.** The recovery email arrives, lands on the update-password screen, and an expired/used link shows a friendly error.
+- [ ] **M3 — Email change.** A change request sends to the new address and only takes effect after confirmation.
+- [ ] **M4 — Deliverability.** SPF, DKIM and DMARC pass; the message is not in spam; sender name is "Loggi".
+
+---
+
+## 12d. Insights and potty commentary
+
+- [ ] **I1 — Cold start.** With fewer than 5 baseline active days or 2 recent active days, the profile shows "More logging days needed" rather than an invented pattern.
+- [ ] **I2 — Explainable comparison.** A populated insight shows recent vs baseline values, a severity label ("Worth a look" / "Worth noting" / "Steady") and a confidence label.
+- [ ] **I3 — Accident pattern.** Log 2–3 accidents in the last 3 days with a clean previous two weeks. The insight says accidents are above baseline and does not diagnose; the copy recommends a vet only if worried.
+- [ ] **I4 — Single accident.** One recent accident with a clean baseline is low confidence / "Worth noting", not a high-confidence alarm.
+- [ ] **I5 — Success rate.** Log at least 2 recent and 4 baseline classified outcomes with a ≥20 percentage-point drop; the success-rate insight appears.
+- [ ] **I6 — Next potty window.** After a successful pee, the next window is last pee + median interval (±30 minutes). It shows Overdue / Due soon / Upcoming correctly and updates after a new log.
+- [ ] **I7 — Puppy confidence.** A dog under 6 months is capped one confidence level lower than an adult with the same data.
+- [ ] **I8 — Feedback labels.** "Looks normal" / "Something's off" saves a row and shows the thank-you state; it does not change the current insight text.
+- [ ] **I9 — No ML claim.** The UI does not claim a diagnosis, a trained model or veterinary advice.
+
+---
+
+## 12e. Multi-dog routines and schedule editing
+
+- [ ] **G1 — Create for several dogs.** Create a walk/feed routine and select 2+ dogs. It appears once in Today's plan with all selected dog names.
+- [ ] **G2 — Complete as one.** Tick the routine once. Every dog in the group is marked done for that due date; untick removes all group completions.
+- [ ] **G3 — Edit routine.** Change title, type, time, recurrence and assignee. Save; the current routine list and Today's plan show the new values.
+- [ ] **G4 — Add/remove dogs.** Edit a routine to remove one dog and add another. Removed dog rows disappear; the added dog appears in Today's plan; existing event history is untouched.
+- [ ] **G5 — Pause/resume group.** Pausing a routine removes all its dogs from Today's plan; resuming brings them back.
+- [ ] **G6 — Delete group.** Delete a multi-dog routine; all rows disappear and existing logged events remain.
+- [ ] **G7 — Single-dog regression.** An existing single-dog routine still creates, edits, completes and deletes as before.
+- [ ] **G8 — On-duty assignment.** Taking a grouped task assigns the whole group, not just one dog.
+
+---
+
 ## 13. Known Release 1 limitations (not bugs)
 
-Do not file these as defects for v0.1.0:
+Do not file these as defects for v0.6.0:
 
 - No push notifications or automated reminders.
 - No offline write queue/background sync; offline writes must fail visibly.
@@ -329,6 +379,10 @@ Do not file these as defects for v0.1.0:
 | RLS negative cases | | | | |
 | iOS/Android/desktop | | | | |
 | Accessibility | | | | |
+| Legal pre-auth and copy | | | | |
+| Email confirmation/reset | | | | |
+| Insights and potty commentary | | | | |
+| Multi-dog routines and editing | | | | |
 
 Release decision:
 

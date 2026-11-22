@@ -1,4 +1,4 @@
-import type { CareSchedule, CareTaskCompletion } from "../types/core.ts";
+import type { CareSchedule, CareTaskCompletion, EventType } from "../types/core.ts";
 
 export type TodayTaskStatus = "done" | "overdue" | "upcoming";
 
@@ -7,6 +7,20 @@ export interface TodayTask {
   /** Local "today" at the schedule's timeOfDay, as an ISO timestamp. */
   dueAt: string;
   status: TodayTaskStatus;
+  completedAt?: string;
+  completedBy?: string;
+}
+
+/** One routine that may cover several dogs. */
+export interface TodayTaskGroup {
+  groupId: string;
+  tasks: TodayTask[];
+  schedule: CareSchedule;
+  type: EventType;
+  title: string;
+  dueAt: string;
+  status: TodayTaskStatus;
+  dogIds: string[];
   completedAt?: string;
   completedBy?: string;
 }
@@ -245,4 +259,60 @@ export function getTodayPlan(
   }
 
   return tasks.sort(compareTasks);
+}
+
+
+/**
+ * Group per-dog tasks that belong to the same routine.
+ *
+ * The database stores one row per dog so RLS and per-dog reporting stay
+ * simple; the UI shows one checkbox per group. A group is "done" only when
+ * every dog's task is done.
+ */
+export function groupTodayTasks(tasks: TodayTask[]): TodayTaskGroup[] {
+  const groups = new Map<string, TodayTask[]>();
+
+  for (const task of tasks) {
+    // Fallback keeps old data readable if the app is deployed before the
+    // schedule_groups migration has been applied.
+    const groupId = task.schedule.groupId || task.schedule.id;
+    const current = groups.get(groupId);
+    if (current) current.push(task);
+    else groups.set(groupId, [task]);
+  }
+
+  const result: TodayTaskGroup[] = [];
+
+  for (const [groupId, groupTasks] of groups) {
+    const first = groupTasks[0];
+    const doneCount = groupTasks.filter((task) => task.status === "done").length;
+    const status: TodayTaskStatus =
+      doneCount === groupTasks.length
+        ? "done"
+        : groupTasks.some((task) => task.status === "overdue")
+          ? "overdue"
+          : "upcoming";
+    const completed = groupTasks.find((task) => task.completedBy);
+
+    result.push({
+      groupId,
+      tasks: groupTasks,
+      schedule: first.schedule,
+      type: first.schedule.type,
+      title: first.schedule.title,
+      dueAt: first.dueAt,
+      status,
+      dogIds: groupTasks.map((task) => task.schedule.dogId),
+      completedAt: completed?.completedAt,
+      completedBy: completed?.completedBy,
+    });
+  }
+
+  return result.sort((a, b) => {
+    const statusOrder = STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+    if (statusOrder !== 0) return statusOrder;
+    const dueOrder = new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
+    if (dueOrder !== 0) return dueOrder;
+    return a.title.localeCompare(b.title);
+  });
 }

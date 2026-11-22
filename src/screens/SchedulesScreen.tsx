@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   CareSchedule,
   Dog,
@@ -6,11 +6,13 @@ import type {
   HouseholdMember,
   ScheduleRecurrence,
 } from "../types/core.ts";
+import ConfirmDialog from "../components/ConfirmDialog.tsx";
 import { EVENT_DISPLAY } from "../lib/eventMeta.ts";
 import {
-  createSchedule,
-  deleteSchedule,
+  createScheduleGroup,
+  deleteScheduleGroup,
   updateSchedule,
+  updateScheduleGroup,
 } from "../lib/scheduleApi.ts";
 
 type SchedulesScreenProps = {
@@ -21,6 +23,18 @@ type SchedulesScreenProps = {
   schedules: CareSchedule[];
   onChanged: () => void;
   onBack: () => void;
+};
+
+type ScheduleGroup = {
+  groupId: string;
+  schedules: CareSchedule[];
+  title: string;
+  type: EventType;
+  timeOfDay: string;
+  recurrence: ScheduleRecurrence;
+  active: boolean;
+  assignedTo?: string;
+  dogIds: string[];
 };
 
 const inputClass =
@@ -55,6 +69,48 @@ function memberName(
   return member?.displayName?.trim() || "Household member";
 }
 
+function buildGroups(schedules: CareSchedule[]): ScheduleGroup[] {
+  const byGroup = new Map<string, CareSchedule[]>();
+
+  for (const schedule of schedules) {
+    const groupId = schedule.groupId || schedule.id;
+    const current = byGroup.get(groupId);
+    if (current) current.push(schedule);
+    else byGroup.set(groupId, [schedule]);
+  }
+
+  return [...byGroup.entries()]
+    .map(([groupId, rows]) => {
+      const first = rows[0];
+      return {
+        groupId,
+        schedules: rows,
+        title: first.title,
+        type: first.type,
+        timeOfDay: first.timeOfDay,
+        recurrence: first.recurrence,
+        active: rows.every((row) => row.active),
+        assignedTo: first.assignedTo,
+        dogIds: rows.map((row) => row.dogId),
+      };
+    })
+    .sort(
+      (a, b) =>
+        a.timeOfDay.localeCompare(b.timeOfDay) ||
+        a.title.localeCompare(b.title),
+    );
+}
+
+function dogLabel(dogs: Dog[], dogIds: string[]): string {
+  const names = dogIds.map(
+    (dogId) => dogs.find((dog) => dog.dogId === dogId)?.dogName ?? "Unknown dog",
+  );
+  if (names.length === 0) return "No dogs selected";
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 export default function SchedulesScreen({
   householdId,
   dogs,
@@ -64,7 +120,10 @@ export default function SchedulesScreen({
   onChanged,
   onBack,
 }: SchedulesScreenProps) {
-  const [dogId, setDogId] = useState(dogs[0]?.dogId ?? "");
+  const formRef = useRef<HTMLFormElement>(null);
+  const [dogIds, setDogIds] = useState<string[]>(() =>
+    dogs[0] ? [dogs[0].dogId] : [],
+  );
   const [type, setType] = useState<EventType>("feed");
   const [title, setTitle] = useState("");
   const [timeOfDay, setTimeOfDay] = useState("08:00");
@@ -73,40 +132,106 @@ export default function SchedulesScreen({
   const [assignedTo, setAssignedTo] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [scheduleToDelete, setScheduleToDelete] =
+    useState<ScheduleGroup | null>(null);
+  const [deletingGroup, setDeletingGroup] = useState(false);
 
-  async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
+  const groups = useMemo(() => buildGroups(schedules), [schedules]);
+
+  function toggleDog(dogId: string) {
+    setDogIds((previous) =>
+      previous.includes(dogId)
+        ? previous.filter((id) => id !== dogId)
+        : [...previous, dogId],
+    );
+  }
+
+  function resetForm() {
+    setEditingGroupId(null);
+    setDogIds(dogs[0] ? [dogs[0].dogId] : []);
+    setType("feed");
+    setTitle("");
+    setTimeOfDay("08:00");
+    setRecurrence("daily");
+    setAssignedTo("");
+    setError(null);
+  }
+
+  function startEdit(group: ScheduleGroup) {
+    setEditingGroupId(group.groupId);
+    setDogIds(group.dogIds);
+    setType(group.type);
+    setTitle(group.title);
+    setTimeOfDay(group.timeOfDay.slice(0, 5));
+    setRecurrence(group.recurrence);
+    setAssignedTo(group.assignedTo ?? "");
+    setError(null);
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!dogId) {
-      setError("Add a dog before creating a schedule.");
+    const selectedDogIds = dogIds.filter((dogId) =>
+      dogs.some((dog) => dog.dogId === dogId),
+    );
+    if (selectedDogIds.length === 0) {
+      setError("Choose at least one dog.");
       return;
     }
 
     setPending(true);
     setError(null);
+    const resolvedTitle =
+      title.trim() || EVENT_DISPLAY[type]?.label || type;
+
     try {
-      await createSchedule({
-        householdId,
-        dogId,
-        type,
-        title: title.trim() || EVENT_DISPLAY[type]?.label || type,
-        timeOfDay,
-        recurrence,
-        assignedTo: assignedTo || null,
-        createdBy: currentUserId,
-      });
-      setTitle("");
+      if (editingGroupId) {
+        await updateScheduleGroup(
+          editingGroupId,
+          {
+            type,
+            title: resolvedTitle,
+            timeOfDay,
+            recurrence,
+            assignedTo: assignedTo || null,
+          },
+          selectedDogIds,
+        );
+      } else {
+        await createScheduleGroup({
+          householdId,
+          dogIds: selectedDogIds,
+          type,
+          title: resolvedTitle,
+          timeOfDay,
+          recurrence,
+          assignedTo: assignedTo || null,
+          createdBy: currentUserId,
+        });
+      }
+      resetForm();
       onChanged();
-    } catch (createError) {
-      console.error("Error creating schedule:", createError);
-      setError("Couldn't create that schedule. Please try again.");
+    } catch (submitError) {
+      console.error("Error saving schedule:", submitError);
+      setError(
+        editingGroupId
+          ? "Couldn't save those changes. Please try again."
+          : "Couldn't create that schedule. Please try again.",
+      );
     } finally {
       setPending(false);
     }
   }
 
-  async function handleToggle(schedule: CareSchedule) {
+  async function handleToggleActive(group: ScheduleGroup) {
+    const nextActive = !group.active;
     try {
-      await updateSchedule(schedule.id, { active: !schedule.active });
+      await Promise.all(
+        group.schedules.map((schedule) =>
+          updateSchedule(schedule.id, { active: nextActive }),
+        ),
+      );
       onChanged();
     } catch (toggleError) {
       console.error("Error toggling schedule:", toggleError);
@@ -114,20 +239,17 @@ export default function SchedulesScreen({
     }
   }
 
-  async function handleDelete(schedule: CareSchedule) {
-    if (
-      !window.confirm(
-        `Delete the ${schedule.title} schedule? Existing event history stays.`,
-      )
-    ) {
-      return;
-    }
+  async function handleDelete(group: ScheduleGroup) {
+    setDeletingGroup(true);
     try {
-      await deleteSchedule(schedule.id);
+      await deleteScheduleGroup(group.groupId);
       onChanged();
     } catch (deleteError) {
       console.error("Error deleting schedule:", deleteError);
       setError("Couldn't delete that schedule. Please try again.");
+    } finally {
+      setDeletingGroup(false);
+      setScheduleToDelete(null);
     }
   }
 
@@ -149,37 +271,63 @@ export default function SchedulesScreen({
           Your plan
         </h1>
         <p className="mt-2 text-sm text-text-muted">
-          Set the routine once. Logged events mark tasks done and the whole
+          Set the routine once. One walk can cover several dogs, and the whole
           household sees the same plan.
         </p>
       </div>
 
       <form
-        onSubmit={handleCreate}
-        className="mb-8 rounded-3xl border border-warm-brown/10 bg-white p-5"
+        ref={formRef}
+        onSubmit={handleSubmit}
+        className="mb-8 scroll-mt-20 rounded-3xl border border-warm-brown/10 bg-white p-5"
       >
-        <h2 className="mb-4 text-lg font-bold font-fraunces text-warm-brown">
-          Add a routine item
-        </h2>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="schedule-dog" className={labelClass}>
-              Dog
-            </label>
-            <select
-              id="schedule-dog"
-              value={dogId}
-              onChange={(event) => setDogId(event.target.value)}
-              className={inputClass}
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <h2 className="text-lg font-bold font-fraunces text-warm-brown">
+            {editingGroupId ? "Edit routine" : "Add a routine item"}
+          </h2>
+          {editingGroupId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="text-xs font-medium text-text-muted underline underline-offset-2 hover:text-warm-brown"
             >
-              {dogs.map((dog) => (
-                <option key={dog.dogId} value={dog.dogId}>
-                  {dog.dogName}
-                </option>
-              ))}
-            </select>
-          </div>
+              Cancel edit
+            </button>
+          )}
+        </div>
+
+        <fieldset>
+          <legend className={labelClass}>Dogs</legend>
+          {dogs.length === 0 ? (
+            <p className="text-sm text-text-muted">
+              Add a dog before creating a schedule.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {dogs.map((dog) => {
+                const selected = dogIds.includes(dog.dogId);
+                return (
+                  <button
+                    key={dog.dogId}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => toggleDog(dog.dogId)}
+                    className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                      selected
+                        ? "border-warm-brown bg-warm-brown text-white"
+                        : "border-warm-brown/20 bg-cream text-text-dark hover:bg-light-tan"
+                    }`}
+                  >
+                    {selected ? "✓ " : ""}
+                    {dog.dogName}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </fieldset>
+
+        <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="schedule-type" className={labelClass}>
               Type
@@ -196,6 +344,19 @@ export default function SchedulesScreen({
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label htmlFor="schedule-time" className={labelClass}>
+              Time
+            </label>
+            <input
+              id="schedule-time"
+              type="time"
+              value={timeOfDay}
+              onChange={(event) => setTimeOfDay(event.target.value)}
+              required
+              className={inputClass}
+            />
           </div>
         </div>
 
@@ -215,19 +376,6 @@ export default function SchedulesScreen({
 
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="schedule-time" className={labelClass}>
-              Time
-            </label>
-            <input
-              id="schedule-time"
-              type="time"
-              value={timeOfDay}
-              onChange={(event) => setTimeOfDay(event.target.value)}
-              required
-              className={inputClass}
-            />
-          </div>
-          <div>
             <label htmlFor="schedule-recurrence" className={labelClass}>
               Repeats
             </label>
@@ -246,27 +394,26 @@ export default function SchedulesScreen({
               ))}
             </select>
           </div>
-        </div>
-
-        <div className="mt-3">
-          <label htmlFor="schedule-assignee" className={labelClass}>
-            Who is responsible?
-          </label>
-          <select
-            id="schedule-assignee"
-            value={assignedTo}
-            onChange={(event) => setAssignedTo(event.target.value)}
-            className={inputClass}
-          >
-            <option value="">Anyone</option>
-            {members.map((member) => (
-              <option key={member.userId} value={member.userId}>
-                {member.userId === currentUserId
-                  ? "Me"
-                  : member.displayName?.trim() || "Household member"}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label htmlFor="schedule-assignee" className={labelClass}>
+              Who is responsible?
+            </label>
+            <select
+              id="schedule-assignee"
+              value={assignedTo}
+              onChange={(event) => setAssignedTo(event.target.value)}
+              className={inputClass}
+            >
+              <option value="">Anyone</option>
+              {members.map((member) => (
+                <option key={member.userId} value={member.userId}>
+                  {member.userId === currentUserId
+                    ? "Me"
+                    : member.displayName?.trim() || "Household member"}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {error && (
@@ -275,19 +422,17 @@ export default function SchedulesScreen({
           </p>
         )}
 
-        {dogs.length === 0 ? (
-          <p className="mt-4 text-sm text-text-muted">
-            Add a dog before creating a schedule.
-          </p>
-        ) : (
-          <button
-            type="submit"
-            disabled={pending}
-            className="mt-4 w-full rounded-xl bg-warm-brown py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {pending ? "Adding…" : "Add schedule"}
-          </button>
-        )}
+        <button
+          type="submit"
+          disabled={pending || dogs.length === 0}
+          className="mt-4 w-full rounded-xl bg-warm-brown py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {pending
+            ? "Saving…"
+            : editingGroupId
+              ? "Save changes"
+              : "Add schedule"}
+        </button>
       </form>
 
       <section className="rounded-3xl border border-warm-brown/10 bg-white p-5">
@@ -295,57 +440,81 @@ export default function SchedulesScreen({
           Current routine
         </h2>
 
-        {schedules.length === 0 ? (
+        {groups.length === 0 ? (
           <p className="text-sm text-text-muted">
             Nothing in the routine yet. Add the first item above.
           </p>
         ) : (
           <ul className="divide-y divide-warm-brown/10">
-            {schedules.map((schedule) => {
-              const dog = dogs.find((item) => item.dogId === schedule.dogId);
-              return (
-                <li
-                  key={schedule.id}
-                  className="flex items-start justify-between gap-3 py-3"
-                >
+            {groups.map((group) => (
+              <li
+                key={group.groupId}
+                className="py-3"
+              >
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-text-dark">
-                      {schedule.timeOfDay.slice(0, 5)} · {schedule.title}
+                      {group.timeOfDay.slice(0, 5)} · {group.title}
                     </p>
                     <p className="text-xs text-text-muted">
-                      {dog?.dogName ?? "Unknown dog"} ·{" "}
+                      {dogLabel(dogs, group.dogIds)} ·{" "}
                       {RECURRENCES.find(
-                        (item) => item.value === schedule.recurrence,
-                      )?.label ?? schedule.recurrence}{" "}
-                      · {memberName(members, schedule.assignedTo)}
+                        (item) => item.value === group.recurrence,
+                      )?.label ?? group.recurrence}{" "}
+                      · {memberName(members, group.assignedTo)}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                     <button
                       type="button"
-                      onClick={() => void handleToggle(schedule)}
+                      onClick={() => startEdit(group)}
+                      className="rounded-lg border border-warm-brown/20 px-2.5 py-1.5 text-xs font-semibold text-warm-brown hover:bg-light-tan"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleToggleActive(group)}
                       className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold ${
-                        schedule.active
+                        group.active
                           ? "bg-emerald-50 text-emerald-800"
                           : "bg-light-tan text-text-muted"
                       }`}
                     >
-                      {schedule.active ? "Active" : "Paused"}
+                      {group.active ? "Active" : "Paused"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => void handleDelete(schedule)}
+                      onClick={() => setScheduleToDelete(group)}
                       className="text-xs font-medium text-rose-500 hover:text-rose-700"
                     >
                       Delete
                     </button>
                   </div>
-                </li>
-              );
-            })}
+                </div>
+              </li>
+            ))}
           </ul>
         )}
       </section>
+
+      {scheduleToDelete && (
+        <ConfirmDialog
+          title={`Delete the ${scheduleToDelete.title} routine?`}
+          description="Existing logged events stay in the household history."
+          confirmLabel="Delete routine"
+          tone="danger"
+          pending={deletingGroup}
+          onConfirm={() => void handleDelete(scheduleToDelete)}
+          onCancel={() => setScheduleToDelete(null)}
+        >
+          <p className="text-sm text-text-muted">
+            This stops the task appearing in today’s plan for{" "}
+            {dogLabel(dogs, scheduleToDelete.dogIds)}. You can add it again
+            later.
+          </p>
+        </ConfirmDialog>
+      )}
     </div>
   );
 }

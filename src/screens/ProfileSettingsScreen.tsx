@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ConfirmDialog from "../components/ConfirmDialog.tsx";
 import {
   changePassword,
   loadAccountUser,
@@ -51,6 +52,7 @@ export default function ProfileSettingsScreen({
   const [savingPassword, setSavingPassword] = useState(false);
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [signingOutOthers, setSigningOutOthers] = useState(false);
+  const [confirmSignOutOthers, setConfirmSignOutOthers] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -226,13 +228,6 @@ export default function ProfileSettingsScreen({
 
   async function handleSignOutOthers() {
     if (signingOutOthers) return;
-    if (
-      !window.confirm(
-        "Sign out every other device? This device will stay signed in.",
-      )
-    ) {
-      return;
-    }
     setSigningOutOthers(true);
     setNotice(null);
     try {
@@ -251,6 +246,7 @@ export default function ProfileSettingsScreen({
       });
     } finally {
       setSigningOutOthers(false);
+      setConfirmSignOutOthers(false);
     }
   }
 
@@ -569,7 +565,7 @@ export default function ProfileSettingsScreen({
         </p>
         <button
           type="button"
-          onClick={() => void handleSignOutOthers()}
+          onClick={() => setConfirmSignOutOthers(true)}
           disabled={signingOutOthers}
           className="w-full rounded-xl border border-warm-brown/20 py-2.5 text-sm font-semibold text-warm-brown hover:bg-light-tan disabled:opacity-40"
         >
@@ -590,6 +586,22 @@ export default function ProfileSettingsScreen({
             Export household data, review your plan, or delete your account.
           </span>
         </button>
+      )}
+
+      {confirmSignOutOthers && (
+        <ConfirmDialog
+          title="Sign out every other device?"
+          description="This device will stay signed in."
+          confirmLabel="Sign out other sessions"
+          pending={signingOutOthers}
+          onConfirm={() => void handleSignOutOthers()}
+          onCancel={() => setConfirmSignOutOthers(false)}
+        >
+          <p className="text-sm text-text-muted">
+            Any other phone, tablet or computer signed in to your account will
+            need your password to sign in again.
+          </p>
+        </ConfirmDialog>
       )}
     </div>
   );
