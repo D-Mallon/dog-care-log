@@ -5,6 +5,7 @@ import type {
   EventType,
   ScheduleRecurrence,
 } from "../types/core.ts";
+import { toLocalDateKey } from "./schedules.ts";
 
 export type NewScheduleInput = {
   householdId: string;
@@ -72,7 +73,9 @@ export async function createScheduleGroup(
     assignedTo: input.assignedTo ?? null,
     createdBy: input.createdBy,
     createdAt: now,
-    startDate: input.startDate,
+    // Do not rely on the production column default: older schemas were
+    // created without one, so an omitted date fails the NOT NULL constraint.
+    startDate: input.startDate ?? toLocalDateKey(new Date()),
     endDate: input.endDate ?? null,
   }));
 
