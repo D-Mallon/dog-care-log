@@ -304,7 +304,7 @@ Accessibility and UX:
 
 - [ ] **U1 — Legal before sign-up.** On the signed-out auth screen, "Terms of service" and "Privacy policy" open the legal screen without creating an account. Both tabs render; Back returns to the auth screen.
 - [ ] **U2 — No placeholder copy.** The privacy/terms pages contain no `[COMPANY NAME]`, `[CONTACT EMAIL]` or `[REGISTERED ADDRESS]` text and no "unreviewed template" banner.
-- [ ] **U3 — Support channel.** The contact/support link in the legal copy opens the current feedback form in a new tab.
+- [ ] **U3 — Support channel.** The contact link in the legal copy is `mailto:support@loggidogs.com`, and a test email reaches the support inbox.
 - [ ] **U4 — In-app legal.** The home footer opens Privacy & terms while signed in; Back returns to home.
 - [ ] **U5 — Browser/Android back.** From Home, open a dog, then Profile, then Account. Browser/Android back returns to the previous app screen rather than leaving the app. Forward returns again.
 - [ ] **U6 — Destructive actions use the in-app dialog.** Reset demo history, regenerate invite code, sign out other sessions and delete a routine all open a styled modal (not a native browser confirm), with Cancel/Escape working and focus restored.

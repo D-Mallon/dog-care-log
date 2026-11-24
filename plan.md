@@ -2,7 +2,7 @@
 
 **Status:** Active — core MVP complete, commercial-launch work remaining
 **Branch:** `main` (production and integration)
-**Last updated:** 22 November 2026
+**Last updated:** 24 November 2026
 
 > **Historical note:** Sections 1–15 record the original MVP build and the
 > v0.1.0–v0.5.1 releases. They reference `release/mvp` and old versions. Section
@@ -760,7 +760,7 @@ work.
   company/contact/address placeholders and no "unreviewed template" banner.
   Refund/cancellation terms are folded into the Terms tab. Privacy and Terms
   are reachable **before sign-up** from the auth screen, and support/contact
-  uses the in-app feedback form. The copy has not been reviewed by a lawyer.
+  uses support@loggidogs.com. The copy has not been reviewed by a lawyer.
 - **Stripe Tax:** Checkout supports `automatic_tax` behind the
   `STRIPE_AUTOMATIC_TAX=true` secret. It is **off by default** because Stripe
   Tax Basic is billed per transaction (0.5% for no-code Checkout, or a flat
@@ -803,6 +803,8 @@ work.
       `startDate` explicitly; deployed as `v0.6.1` (`f3eb47e`) and verified
       through the production UI. The temporary QA account and household were
       deleted.
+- [x] Switch the in-app support channel from the Google Form to
+      `support@loggidogs.com`; forwarding was verified. Released as `v0.6.2`.
 - [ ] Decide on VAT registration and Stripe Tax; if enabling, set
       `STRIPE_AUTOMATIC_TAX=true` and run the tax scenarios. If not, keep the
       current neutral pricing copy and document the position.
@@ -814,7 +816,7 @@ work.
       do a restore drill.
 - [ ] Decide whether signups stay open during the trial period or are gated to
       invited users.
-- [ ] Tag `v0.6.1` only after the above (already tagged for the startDate fix).
+- [x] Tag `v0.6.2` after the support-email switch; `v0.6.1` was tagged for the startDate fix.
 
 ### Decisions recorded — 20 November 2026
 

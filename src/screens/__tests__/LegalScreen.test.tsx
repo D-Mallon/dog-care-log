@@ -23,6 +23,9 @@ describe("LegalScreen", () => {
     expect(
       screen.queryByText(/plain-language templates/i),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: "support@loggidogs.com" })[0],
+    ).toHaveAttribute("href", "mailto:support@loggidogs.com");
   });
 
   it("switches to terms and exposes refunds there", async () => {

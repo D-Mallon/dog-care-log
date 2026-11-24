@@ -1512,13 +1512,12 @@ function App() {
         )}
 
         <footer className="mt-8 flex flex-wrap justify-center gap-x-3 gap-y-2 border-t border-warm-brown/10 pt-4 text-[11px] text-text-muted">
-          <button
-            type="button"
-            onClick={() => window.open(SUPPORT_URL, "_blank")}
+          <a
+            href={SUPPORT_URL}
             className="hover:text-warm-brown"
           >
             {SUPPORT_LABEL}
-          </button>
+          </a>
           <span aria-hidden="true">·</span>
           <button
             type="button"

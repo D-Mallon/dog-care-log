@@ -214,3 +214,36 @@ dig TXT _dmarc.loggidogs.com +short
 If a record looks like `resend._domainkey.loggidogs.com.loggidogs.com`, the
 Spaceship form appended the domain to a name you already made fully qualified.
 Remove the duplicate suffix.
+
+## Support forwarding with ImprovMX
+
+If Spaceship’s built-in forwarding is not available, ImprovMX works without
+moving nameservers. The root domain has no MX or SPF records today, so add:
+
+| Type | Host / name | Priority | Value | TTL |
+| --- | --- | ---: | --- | --- |
+| MX | `@` | `10` | `mx1.improvmx.com` | Auto / 3600 |
+| MX | `@` | `20` | `mx2.improvmx.com` | Auto / 3600 |
+| TXT | `@` | — | `v=spf1 include:spf.improvmx.com ~all` | Auto / 3600 |
+
+Spaceship’s form may append `.loggidogs.com` automatically. In that case enter
+`@` as the host, not the full domain, or the record becomes
+`loggidogs.com.loggidogs.com`.
+
+Alias: create `support@loggidogs.com` (not `support*@`). If you intentionally
+want a catch-all, use `*` as the alias.
+
+Keep the Resend records untouched:
+
+- `resend._domainkey` TXT
+- `rsend` CNAME
+- `send` CNAME
+- `_dmarc` TXT
+
+After saving, click **Check again** in ImprovMX. DNS can take a few minutes.
+Send a test from an outside address to `support@loggidogs.com`; check the
+forwarded copy and the ImprovMX logs.
+
+If you already have a root SPF TXT record later, merge the includes into one
+record instead of creating a second SPF record. Forwarding only receives mail;
+to reply *as* `support@`, you need a real mailbox or ImprovMX’s paid SMTP.

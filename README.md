@@ -2,7 +2,7 @@
 
 Loggi is a Progressive Web App for households that share dog care. Everyone who looks after the dog uses the same household, so feeding, walks, toilet breaks, medication, weight and notes stay in one place — and every member can see who logged what.
 
-**v0.6.1 is the current production release.** `main` is production and deploys through Vercel. The full scope, decisions and open questions live in [plan.md](plan.md). The [QA checklist](docs/qa.md) is the gate for calling a feature shipped.
+**v0.6.2 is the current production release.** `main` is production and deploys through Vercel. The full scope, decisions and open questions live in [plan.md](plan.md). The [QA checklist](docs/qa.md) is the gate for calling a feature shipped.
 
 ## Release 1 target scope
 
@@ -60,7 +60,7 @@ To keep the launch honest, these are explicitly out of scope:
 
 ## Before taking live payments
 
-- Have the plain-language privacy and terms copy in [`LegalScreen.tsx`](src/screens/LegalScreen.tsx) reviewed for your entity, consumer-law and VAT position. The company/contact placeholders have been removed; the current contact channel is the in-app support form.
+- Have the plain-language privacy and terms copy in [`LegalScreen.tsx`](src/screens/LegalScreen.tsx) reviewed for your entity, consumer-law and VAT position. The company/contact placeholders have been removed; the current contact channel is support@loggidogs.com.
 - Configure custom SMTP before inviting real users. Supabase's built-in mailer only delivers to project team addresses and is limited to 2 messages/hour — see [docs/email-setup.md](docs/email-setup.md).
 - Stripe Tax is deliberately **off for now**: it costs per transaction and Loggi is pre-revenue. Keep the neutral pricing copy and revisit VAT after the first paying cohort — see [docs/stripe-setup.md](docs/stripe-setup.md#122-stripe-tax--vat).
 - Settle the VAT position before live billing. If Loggi is VAT-registered, consumer prices must be displayed **VAT-inclusive**; if it is below the services threshold, do not claim VAT is included. See [VAT-inclusive consumer pricing](docs/stripe-setup.md#1221-vat-inclusive-consumer-pricing).
@@ -251,8 +251,8 @@ main (production + integration)
    ```bash
    git switch main
    git pull --ff-only
-   git tag -a v0.6.1 -m "Loggi v0.6.1"
-   git push origin v0.6.1
+   git tag -a v0.6.2 -m "Loggi v0.6.2"
+   git push origin v0.6.2
    ```
 
 Keep `main` deployable at all times. The CI workflow is [`.github/workflows/ci.yml`](.github/workflows/ci.yml): it runs `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run check:functions` and `npm run build` on pull requests and pushes to `main`. A database job applies every migration to PostgreSQL 16 with mocked `auth`/`storage` schemas and runs the free-plan **and** retention/social RLS checks. A separate job runs the Playwright browser smoke tests.

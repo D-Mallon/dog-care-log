@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SUPPORT_URL } from "../lib/support.ts";
+import { SUPPORT_EMAIL, SUPPORT_URL } from "../lib/support.ts";
 
 export type LegalTab = "privacy" | "terms";
 
@@ -34,15 +34,13 @@ function Section({
   );
 }
 
-function SupportLink({ children = "contact form" }: { children?: string }) {
+function SupportLink() {
   return (
     <a
       href={SUPPORT_URL}
-      target="_blank"
-      rel="noreferrer"
       className="font-semibold text-warm-brown underline underline-offset-2 hover:opacity-70"
     >
-      {children}
+      {SUPPORT_EMAIL}
     </a>
   );
 }
@@ -105,7 +103,7 @@ export default function LegalScreen({
               <p>
                 Loggi is an independent app for households that share dog care.
                 In this policy, “we” and “us” mean the team that operates
-                Loggi. You can reach us through the <SupportLink />.
+                Loggi. You can reach us at <SupportLink />.
               </p>
             </Section>
 
@@ -180,7 +178,7 @@ export default function LegalScreen({
               <p>
                 You can ask for a copy of your data, correct it, export it,
                 delete it, restrict or object to some processing, or withdraw
-                consent where we rely on it. Use the <SupportLink /> and we will
+                consent where we rely on it. Email <SupportLink /> and we will
                 respond within the time required by law.
               </p>
               <p>
@@ -267,7 +265,7 @@ export default function LegalScreen({
                 As a consumer, you generally have 14 days to withdraw from a
                 digital subscription. If you ask us to start the service
                 immediately, you may lose that right once the service has been
-                fully provided. Contact us through the <SupportLink /> to
+                fully provided. Email <SupportLink /> to
                 exercise it.
               </p>
               <p>
@@ -320,7 +318,7 @@ export default function LegalScreen({
 
             <Section title="Contact and changes">
               <p>
-                Questions about these terms? Use the <SupportLink />. We may
+                Questions about these terms? Email <SupportLink />. We may
                 update these terms as the service changes; the effective date
                 above will change and we will give notice in the app for
                 material changes.
